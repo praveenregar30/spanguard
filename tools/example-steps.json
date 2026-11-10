@@ -1,0 +1,9 @@
+[
+ {"size":[1366,900],"dark":false,"nav":"file:///C:/Users/77263/bridge-shm/index.html#overview","wait":3000},
+ {"eval":"toggleDamage(); 'stiffness loss on'","sleep":17000},
+ {"eval":"JSON.stringify({headline:document.querySelector('#hero h1').textContent, state:S.piState.state})"},
+ {"shot":"overview-alarm.png","maxH":1300},
+ {"size":[390,844],"dark":true,"rm":true,"nav":"file:///C:/Users/77263/bridge-shm/index.html#vibration","wait":3000},
+ {"eval":"document.documentElement.scrollWidth"},
+ {"shot":"phone-vibration.png","maxH":1400}
+]
