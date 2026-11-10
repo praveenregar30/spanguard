@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bridge health monitor</title>
+<meta name="description" content="Structural health monitoring dashboard for a road bridge: live vibration, anomaly score, trends and base station status.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;1,400&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#edf1ec; --panel:#f6f8f5; --panel2:#e9eee8; --rule:#cbd5cd; --rule2:#dde4de;
+  --ink:#1d2b35; --ink2:#46565f; --ink3:#5c6c75;
+  --trace:#1d5c8f; --trace-soft:rgba(29,92,143,.12); --focus:#1d5c8f;
+  --c1:#1d5c8f; --c2:#7a4e9c; --c3:#5d6d75; --typ:#a3aea8;
+  --ok:#276b42; --ok-bg:#dcebdf; --warn:#8f5a0a; --warn-bg:#f4e7cc; --bad:#b4372b; --bad-bg:#f4dcd8; --info:#1d5c8f; --info-bg:#dce6ee;
+  --paper-minor:rgba(29,92,143,.055); --paper-major:rgba(29,92,143,.11);
+  --water:#cfdee4; --water2:#b5cbd5; --hill:#e2e9e1; --hill2:#d6e0d5; --bank:#cdd8cb;
+  --stone:#d3d8cf; --stone-line:#a7b0a6; --deck:#2b3a44; --rail:#5b6a73; --sky:#edf1ec;
+  --ev:rgba(168,104,15,.10);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#10171c; --panel:#152027; --panel2:#1a262e; --rule:#2a3a44; --rule2:#21303a;
+    --ink:#dce7ec; --ink2:#a9b9c1; --ink3:#8b9ca6;
+    --trace:#9cc9ee; --trace-soft:rgba(156,201,238,.14); --focus:#9cc9ee;
+    --c1:#9cc9ee; --c2:#cfaef0; --c3:#a8b7be; --typ:#4d5c64;
+    --ok:#5cc28a; --ok-bg:#163026; --warn:#e5ab4c; --warn-bg:#382a12; --bad:#f2786b; --bad-bg:#3c1c19; --info:#9cc9ee; --info-bg:#1a2c3a;
+    --paper-minor:rgba(156,201,238,.045); --paper-major:rgba(156,201,238,.09);
+    --water:#11263a; --water2:#1a3650; --hill:#131e25; --hill2:#17242c; --bank:#1b2a33;
+    --stone:#26333b; --stone-line:#3d4d57; --deck:#c9d6dc; --rail:#7d909a; --sky:#10171c;
+    --ev:rgba(229,171,76,.10);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#10171c; --panel:#152027; --panel2:#1a262e; --rule:#2a3a44; --rule2:#21303a;
+  --ink:#dce7ec; --ink2:#a9b9c1; --ink3:#8b9ca6;
+  --trace:#9cc9ee; --trace-soft:rgba(156,201,238,.14); --focus:#9cc9ee;
+  --c1:#9cc9ee; --c2:#cfaef0; --c3:#a8b7be; --typ:#4d5c64;
+  --ok:#5cc28a; --ok-bg:#163026; --warn:#e5ab4c; --warn-bg:#382a12; --bad:#f2786b; --bad-bg:#3c1c19; --info:#9cc9ee; --info-bg:#1a2c3a;
+  --paper-minor:rgba(156,201,238,.045); --paper-major:rgba(156,201,238,.09);
+  --water:#11263a; --water2:#1a3650; --hill:#131e25; --hill2:#17242c; --bank:#1b2a33;
+  --stone:#26333b; --stone-line:#3d4d57; --deck:#c9d6dc; --rail:#7d909a; --sky:#10171c;
+  --ev:rgba(229,171,76,.10);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 Barlow,"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;min-height:100vh}
+h1,h2,h3,.cond,.num,.btn,.tabs a{font-family:"Barlow Semi Condensed","Arial Narrow",Barlow,system-ui,sans-serif}
+.num{font-variant-numeric:tabular-nums}
+a{color:var(--trace)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+[hidden]{display:none!important}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px}
+.skip{position:absolute;left:12px;top:-60px;z-index:60;background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:6px;font-weight:600;text-decoration:none}
+.skip:focus{top:10px}
+main:focus{outline:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* header */
+header.top{border-bottom:1px solid var(--rule);background:var(--bg);position:sticky;top:env(safe-area-inset-top,0px);z-index:20}
+.top-row{display:flex;align-items:center;gap:12px;padding:12px 20px 4px}
+.brand{display:flex;align-items:center;gap:12px;margin-right:auto;min-width:0;color:var(--ink);text-decoration:none}
+.brand svg{flex:none}
+.brand-name{font-family:"Barlow Semi Condensed",sans-serif;font-size:22px;font-weight:600;line-height:1.1;display:block}
+.brand .site{color:var(--ink2);font-size:14px;display:block}
+.pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--rule);border-radius:999px;padding:4px 11px;font-size:14px;background:var(--panel);white-space:nowrap;color:var(--ink);text-decoration:none}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--ink3);flex:none}
+.pill.live .dot{background:var(--ok);box-shadow:0 0 0 3px var(--ok-bg)}
+.pill.demo .dot{background:var(--info)}
+.pill.busy .dot{background:var(--warn)}
+.pill.err .dot{background:var(--bad)}
+.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:0 20px}
+.tabs::-webkit-scrollbar{display:none}
+.tabs a{padding:9px 12px 10px;color:var(--ink2);text-decoration:none;border-bottom:3px solid transparent;white-space:nowrap;font-weight:600;font-size:16.5px}
+.tabs a:hover{color:var(--ink)}
+.tabs a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--trace)}
+.tabs a .tab-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:6px;vertical-align:2px;background:var(--bad)}
+
+.demo-bar{background:var(--info-bg);border-bottom:1px solid var(--rule)}
+.demo-bar .wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px;font-size:15px}
+.demo-bar .msg{margin-right:auto}
+
+main{padding-top:20px;padding-bottom:40px}
+.page{display:flex;flex-direction:column;gap:16px}
+.panel{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:16px 18px}
+.panel h2{font-size:20px;line-height:1.2;margin:0 0 2px;font-weight:600}
+.panel h3{font-size:17px;margin:0 0 6px;font-weight:600}
+.sub{color:var(--ink2);font-size:14.5px;margin:0 0 10px}
+.hint{color:var(--ink2);font-size:15px;margin:6px 0}
+.head-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.grid-2{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start}
+.grid-2e{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.stack{display:flex;flex-direction:column;gap:16px;min-width:0}
+
+/* controls */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);border-radius:6px;padding:6px 13px;cursor:pointer;min-height:38px;font-size:16px;font-weight:600;text-decoration:none;line-height:1.1}
+.btn{transition:background-color .15s ease,border-color .15s ease,color .15s ease,transform .1s ease}
+.btn:hover{border-color:var(--trace);background-color:var(--panel2)}
+.btn.primary:hover{background-color:var(--trace)}
+.btn:active:not(:disabled){transform:translateY(1px) scale(.98)}
+.seg button{transition:background-color .15s ease,color .15s ease}
+.seg button:hover:not([aria-pressed="true"]){background:var(--panel2);color:var(--ink)}
+.tabs a{transition:color .15s ease,border-color .2s ease}
+.node .ring{transition:stroke-width .15s ease}
+.node:hover .ring{stroke-width:4}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.primary{background:var(--trace);border-color:var(--trace);color:var(--panel)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+.btn.icon{padding:6px;width:40px;min-height:40px}
+.btn svg{width:18px;height:18px;flex:none}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:6px;overflow:hidden;background:var(--panel)}
+.seg button{font:600 15px "Barlow Semi Condensed",sans-serif;border:0;background:none;color:var(--ink2);padding:7px 12px;cursor:pointer;min-height:36px}
+.seg button+button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed="true"]{background:var(--trace);color:var(--panel)}
+input[type=text],input[type=password],input[type=number],select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--rule);border-radius:6px;padding:7px 10px;min-height:38px;max-width:100%}
+input:focus-visible,select:focus-visible{outline:2px solid var(--focus);outline-offset:0}
+label.check{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+label.check input{width:18px;height:18px;accent-color:var(--trace)}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.field label{font-weight:600}
+.field .help{font-size:14px;color:var(--ink2)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+
+.badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:1px 9px;font:600 14px "Barlow Semi Condensed",sans-serif;white-space:nowrap;background:var(--panel2);color:var(--ink2)}
+.badge.ok{background:var(--ok-bg);color:var(--ok)}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.badge.bad{background:var(--bad-bg);color:var(--bad)}
+.badge.info{background:var(--info-bg);color:var(--info)}
+.c-ok{color:var(--ok)} .c-warn{color:var(--warn)} .c-bad{color:var(--bad)} .c-mute{color:var(--ink3)}
+
+/* hero */
+.hero{display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center;border:1px solid var(--rule);border-radius:8px;background:var(--panel);padding:18px 20px;position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0 auto 0 0;width:6px;background:var(--hero-c,var(--ink3))}
+.hero{animation:rise .45s cubic-bezier(.2,.7,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.hero.ok{--hero-c:var(--ok);--hero-bg:var(--ok-bg)} .hero.warn{--hero-c:var(--warn);--hero-bg:var(--warn-bg)} .hero.bad{--hero-c:var(--bad);--hero-bg:var(--bad-bg)} .hero.info{--hero-c:var(--info);--hero-bg:var(--info-bg)} .hero.mute{--hero-c:var(--ink3);--hero-bg:var(--panel2)}
+.hero-icon{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:var(--hero-bg,var(--panel2));color:var(--hero-c)}
+.hero-icon svg{width:36px;height:36px}
+.hero.bad .hero-icon{animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 var(--bad-bg)}50%{box-shadow:0 0 0 10px transparent}}
+.hero h1{font-size:40px;line-height:1.05;margin:0 0 6px;font-weight:700;letter-spacing:-.005em}
+.hero p{margin:0;color:var(--ink2);font-size:17px;max-width:68ch}
+.hero .meta{display:flex;flex-direction:column;gap:2px;text-align:right;font-size:15px;color:var(--ink2);white-space:nowrap}
+.hero .meta b{color:var(--ink);font-family:"Barlow Semi Condensed",sans-serif;font-size:17px}
+
+/* bridge */
+.bridge-panel{padding:14px 18px 16px}
+.bridge-wrap{position:relative;margin:4px -8px 0;border-radius:6px;overflow:hidden}
+#bridge{width:100%;height:auto;display:block;touch-action:manipulation}
+.hill-far{fill:var(--hill)} .hill-near{fill:var(--hill2)}
+.bank{fill:var(--bank)}
+.abut{fill:url(#hatch);stroke:var(--stone-line);stroke-width:1.2}
+.abut-bg{fill:var(--stone)}
+.hatch-line{stroke:var(--stone-line);stroke-width:1}
+.water{fill:var(--water)}
+.ripple{stroke:var(--water2);stroke-width:2;stroke-linecap:round;fill:none;animation:drift 7s linear infinite}
+.ripple.r2{animation-duration:11s;opacity:.7}
+@keyframes drift{from{transform:translateX(0)}to{transform:translateX(-80px)}}
+.road{fill:var(--deck)}
+.deck{fill:var(--deck)}
+.reflect{opacity:.08}
+.rail{fill:none;stroke:var(--rail);stroke-width:1.6}
+.posts{stroke:var(--rail);stroke-width:1.4;fill:none}
+.dim line,.dim path{stroke:var(--ink3);stroke-width:1;fill:none}
+.dim text{fill:var(--ink3);font:500 14px Barlow,sans-serif;text-anchor:middle}
+.bridge-note{fill:var(--ink3);font:italic 13px Barlow,sans-serif}
+.node{cursor:pointer;outline:none}
+.node .hit{fill:transparent;r:26px}
+.node .ring{fill:var(--panel);stroke-width:3;r:9px}
+.node .core{r:3.5px;fill:currentColor}
+.node .halo{fill:none;stroke:var(--focus);stroke-width:2.5;opacity:0;r:15px}
+.node:focus-visible .halo,.node.sel .halo{opacity:1}
+.node .leader{stroke:var(--ink3);stroke-width:1;stroke-dasharray:2 3}
+.node .lbl{font:600 16px "Barlow Semi Condensed",sans-serif;fill:var(--ink);text-anchor:middle}
+.node.ok{color:var(--ok)} .node.ok .ring{stroke:var(--ok)}
+.node.bad{color:var(--warn)} .node.bad .ring{stroke:var(--warn)}
+.node.silent{color:var(--bad)} .node.silent .ring{stroke:var(--bad);stroke-dasharray:4 3}
+.node.none{color:var(--ink3)} .node.none .ring{stroke:var(--ink3)}
+.car .body{fill:var(--trace)} .car .win{fill:var(--sky)} .car .wheel{fill:var(--ink)}
+.bridge-empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:20px;background:color-mix(in srgb,var(--panel) 75%,transparent)}
+.bridge-empty div{max-width:440px}
+.player{display:flex;align-items:center;gap:12px;margin-top:8px}
+.player input[type=range]{flex:1;accent-color:var(--trace);min-width:80px;height:28px}
+.clock{font:600 17px "Barlow Semi Condensed",sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:92px;text-align:right}
+.traces{display:flex;flex-direction:column;gap:4px;margin-top:10px}
+.trace{display:grid;grid-template-columns:118px 1fr;align-items:center;gap:10px}
+.trace .tl{font-size:14px;color:var(--ink2);line-height:1.15;cursor:pointer;border-radius:4px}
+.trace .tl b{font:600 16px "Barlow Semi Condensed",sans-serif;color:var(--ink);margin-right:5px}
+.trace .tl i{display:inline-block;width:10px;height:3px;border-radius:2px;vertical-align:4px;margin-right:6px}
+.tw{position:relative;height:50px;border:1px solid var(--rule2);border-radius:5px;overflow:hidden;cursor:crosshair;background:var(--bg)}
+.tw svg{width:100%;height:100%;display:block}
+.tw .tr{fill:none;stroke-width:1.2;vector-effect:non-scaling-stroke}
+.tw .zero{stroke:var(--rule);stroke-width:1;vector-effect:non-scaling-stroke}
+.tw .ev-band{fill:var(--ev)}
+.tw .ph{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--bad);pointer-events:none;left:0}
+.tw-empty{position:absolute;inset:0;display:grid;place-items:center;font-size:14px;color:var(--ink3)}
+.trace.sel .tw{border-color:var(--focus)}
+.node-info{margin-top:12px;border-top:1px solid var(--rule2);padding-top:10px;min-height:46px}
+.ni-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.ni-head b{font:600 18px "Barlow Semi Condensed",sans-serif}
+dl.ni{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px 16px;margin:0}
+dl.ni dt{font-size:13.5px;color:var(--ink2)}
+dl.ni dd{margin:0;font:600 18px "Barlow Semi Condensed",sans-serif;font-variant-numeric:tabular-nums}
+.leg-inline{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;color:var(--ink2);align-items:center}
+.leg-inline span{display:inline-flex;align-items:center;gap:6px}
+.sw-ev{display:inline-block;width:16px;height:10px;background:var(--ev);border:1px solid var(--warn);border-radius:2px}
+
+/* instrument strip */
+.strip{display:grid;grid-template-columns:1.15fr 1.5fr 1fr 1fr 1fr;padding:0}
+.inst{padding:14px 16px;border-left:1px solid var(--rule);min-width:0}
+.inst:first-child{border-left:0}
+.inst .lab{font-size:14.5px;color:var(--ink2);margin-bottom:2px}
+.inst .big{font:600 30px/1.05 "Barlow Semi Condensed",sans-serif;font-variant-numeric:tabular-nums}
+.inst .big small{font-size:17px;font-weight:500;color:var(--ink2);margin-left:3px}
+.inst .note{font-size:14px;color:var(--ink2);margin-top:3px}
+.gauge-row{display:flex;align-items:center;gap:10px}
+.gauge{width:104px;height:62px;flex:none}
+.gauge .g-bg{stroke:var(--rule);stroke-width:9;fill:none;stroke-linecap:round}
+.gauge .g-val{stroke-width:9;fill:none;stroke-linecap:round}
+.gauge .g-tick{stroke:var(--bad);stroke-width:3}
+.gauge .g-needle{stroke:var(--ink);stroke-width:2.5;stroke-linecap:round}
+.gauge text{font:500 11px Barlow,sans-serif;fill:var(--ink3)}
+.freqs{display:grid;grid-template-columns:auto auto 1fr;gap:1px 10px;align-items:baseline}
+.freqs .m{font-size:14px;color:var(--ink2)}
+.freqs .v{font:600 22px "Barlow Semi Condensed",sans-serif;font-variant-numeric:tabular-nums}
+.freqs .d{font:600 16px "Barlow Semi Condensed",sans-serif;font-variant-numeric:tabular-nums;color:var(--ink2)}
+.freqs .d.low{color:var(--bad)}
+.sigbars{display:inline-flex;gap:2px;align-items:flex-end;height:22px;margin-right:6px;vertical-align:-2px}
+.sigbars i{width:5px;background:var(--rule);border-radius:1px}
+.sigbars i.on{background:var(--ink)}
+
+/* charts */
+.chart{position:relative;min-height:60px}
+.chart-box{position:relative}
+.chart-svg{display:block;width:100%;height:auto;overflow:visible;user-select:none}
+.chart-svg text{font:500 12.5px Barlow,sans-serif;fill:var(--ink2)}
+.chart-svg .paper{fill:url(#gp)}
+.gp-minor{stroke:var(--paper-minor);stroke-width:1;fill:none}
+.gp-major{stroke:var(--paper-major);stroke-width:1;fill:none}
+.chart-svg .frame{fill:none;stroke:var(--rule)}
+.chart-svg .grid{stroke:var(--rule2);stroke-width:1}
+.chart-svg .ser{fill:none;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
+.chart-svg .ref{stroke-width:1.5;stroke-dasharray:6 4}
+.chart-svg .ref.alarm{stroke:var(--bad)} .chart-svg .ref.warn{stroke:var(--warn)} .chart-svg .ref.zero{stroke:var(--ink3);stroke-dasharray:2 3;stroke-width:1}
+.chart-svg .ref-lab{font-size:12px}
+.chart-svg .ref-lab.alarm{fill:var(--bad)} .chart-svg .ref-lab.warn{fill:var(--warn)}
+.chart-svg .vline{stroke-width:1.4}
+.chart-svg .vline.base{stroke:var(--ink3);stroke-dasharray:4 4}
+.chart-svg .vline.now{stroke:var(--ink)}
+.chart-svg .vline.now.low{stroke:var(--bad)}
+.chart-svg .vlab{font:600 12.5px "Barlow Semi Condensed",sans-serif;fill:var(--ink)}
+.chart-svg .vlab.low{fill:var(--bad)}
+.chart-svg .band{fill:var(--ev)}
+.chart-svg .dot{stroke:var(--panel);stroke-width:1}
+.chart-svg .dot.warn{fill:var(--warn)} .chart-svg .dot.bad{fill:var(--bad)}
+.chart-svg .xhair{stroke:var(--ink);stroke-width:1;stroke-dasharray:3 3;pointer-events:none}
+.chart-svg .hit{fill:transparent;cursor:crosshair}
+.chart-svg .hit.clickable{cursor:pointer}
+.chart-svg .hdot{stroke:var(--panel);stroke-width:2;pointer-events:none}
+.chart-svg .zero{stroke:var(--rule);stroke-width:1}
+.chart-svg .wave{fill:none;stroke-width:1.1;stroke-linejoin:round}
+.chart-svg .spike{fill:var(--bad);stroke:var(--panel);stroke-width:1}
+.chart-svg .glitch{fill:none;stroke:var(--warn);stroke-width:1.8}
+.chart-svg .rowlab{font:600 15px "Barlow Semi Condensed",sans-serif;fill:var(--ink)}
+.chart-svg .rowsub{font-size:12px;fill:var(--ink3)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:14px;color:var(--ink2);margin:0 0 6px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:18px;height:0;border-top:2.5px solid;border-radius:2px}
+.legend i.dash{border-top-style:dashed}
+.tip{position:absolute;top:8px;z-index:5;background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:7px 10px;font-size:13.5px;pointer-events:none;min-width:130px;max-width:260px;line-height:1.35}
+.tip .tt{font:600 14.5px "Barlow Semi Condensed",sans-serif;margin-bottom:3px}
+.tip b{font-family:"Barlow Semi Condensed",sans-serif;font-variant-numeric:tabular-nums}
+.tip .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
+.tip .tx{color:var(--ink2);margin-top:3px;font-size:13px}
+.empty-chart{display:grid;place-items:center;min-height:140px;text-align:center;color:var(--ink2);border:1px dashed var(--rule);border-radius:6px;padding:16px;font-size:15px;background:var(--bg)}
+
+/* lists */
+.nodes-list{display:flex;flex-direction:column}
+.nrow{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--rule2)}
+.nrow:first-child{border-top:0}
+.nrow .d{width:12px;height:12px;border-radius:50%}
+.nrow .t{font-size:14px;color:var(--ink2)}
+.timeline{list-style:none;margin:0;padding:0;position:relative}
+.timeline li{position:relative;padding:0 0 14px 26px}
+.timeline li::before{content:"";position:absolute;left:6px;top:14px;bottom:-2px;width:2px;background:var(--rule2)}
+.timeline li:last-child::before{display:none}
+.timeline .mk{position:absolute;left:0;top:4px;width:14px;height:14px;border-radius:50%;border:3px solid var(--panel);background:var(--ink3);box-shadow:0 0 0 1px var(--rule)}
+.timeline .mk.ok{background:var(--ok)} .timeline .mk.warn{background:var(--warn)} .timeline .mk.bad{background:var(--bad)} .timeline .mk.info{background:var(--info)}
+.timeline .when{font-size:13.5px;color:var(--ink3)}
+.timeline .what{font-weight:600}
+.timeline .why{font-size:14.5px;color:var(--ink2)}
+.day-head{font:600 16px "Barlow Semi Condensed",sans-serif;color:var(--ink2);margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--rule2)}
+.day-head:first-child{margin-top:0}
+
+/* vibration */
+.picker{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.picker select{min-width:0;flex:1 1 230px;max-width:340px}
+.summary{display:flex;flex-wrap:wrap;gap:6px 18px;margin:12px 0 0;align-items:baseline}
+.kv{font-size:14.5px;color:var(--ink2)}
+.kv b{color:var(--ink);font:600 17px "Barlow Semi Condensed",sans-serif;font-variant-numeric:tabular-nums;margin-left:3px}
+.why-line{margin:8px 0 0;font-size:15.5px}
+.live-box{display:inline-flex;align-items:center;gap:8px}
+.countdown{font:600 16px "Barlow Semi Condensed",sans-serif;color:var(--ok);font-variant-numeric:tabular-nums}
+.livedot{width:9px;height:9px;border-radius:50%;background:var(--ok);animation:blink 1.2s ease-in-out infinite}
+@keyframes blink{50%{opacity:.25}}
+.raw-meta{font-size:14.5px;color:var(--ink2);margin:8px 0}
+
+/* table */
+.table-wrap{overflow-x:auto;border:1px solid var(--rule2);border-radius:6px}
+table.tbl{border-collapse:collapse;width:100%;font-size:14.5px;white-space:nowrap}
+.tbl th{text-align:left;font:600 14.5px "Barlow Semi Condensed",sans-serif;color:var(--ink2);padding:8px 10px;border-bottom:1px solid var(--rule);background:var(--panel2);position:sticky;top:0}
+.tbl td{padding:6px 10px;border-bottom:1px solid var(--rule2);font-variant-numeric:tabular-nums}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .r{text-align:right}
+.tbl tbody tr:hover{background:var(--trace-soft)}
+
+/* system */
+dl.facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px 20px;margin:6px 0 0}
+dl.facts dt{font-size:14px;color:var(--ink2)}
+dl.facts dd{margin:0;font:600 20px "Barlow Semi Condensed",sans-serif;font-variant-numeric:tabular-nums}
+dl.facts dd small{font:400 14px Barlow,sans-serif;color:var(--ink2)}
+.cmd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-top:12px}
+.cmd{border:1px solid var(--rule2);border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--bg)}
+.cmd p{margin:0;font-size:14.5px;color:var(--ink2)}
+.cmd .row input{width:110px}
+.log{list-style:none;margin:10px 0 0;padding:0;font-size:14.5px}
+.log li{padding:7px 0;border-top:1px solid var(--rule2);display:grid;grid-template-columns:100px 100px 1fr;gap:10px}
+.log li:first-child{border-top:0}
+
+/* connect */
+.notice{border:1px solid var(--warn);background:var(--warn-bg);border-radius:8px;padding:12px 14px;font-size:15.5px}
+.notice.bad{border-color:var(--bad);background:var(--bad-bg)}
+.notice.ok{border-color:var(--ok);background:var(--ok-bg)}
+.notice.info{border-color:var(--info);background:var(--info-bg)}
+.conn-msg{margin-top:12px}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
+.pw-wrap{display:flex;gap:6px}
+.pw-wrap input{flex:1;min-width:0}
+.drop{border:1.5px dashed var(--rule);border-radius:8px;padding:18px;text-align:center;background:var(--bg)}
+.drop.over{border-color:var(--trace);background:var(--trace-soft)}
+
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:15px;transition:.25s;pointer-events:none;z-index:50;max-width:calc(100vw - 32px)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+footer.foot{color:var(--ink3);font-size:13.5px;padding-bottom:28px}
+
+@media (max-width:1000px){
+  .strip{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .inst:nth-child(4){border-left:0}
+  .inst:nth-child(n+4){border-top:1px solid var(--rule)}
+  .grid-2,.grid-2e{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:640px){
+  .wrap{padding:0 16px}
+  .top-row{padding:10px 16px 2px}
+  .tabs{padding:0 10px}
+  .brand-name{font-size:19px}
+  .pill{font-size:13px;padding:3px 9px}
+  main{padding-top:14px}
+  .panel{padding:14px}
+  .hero{grid-template-columns:auto 1fr;padding:14px 14px 14px 18px;gap:12px}
+  .hero-icon{width:48px;height:48px} .hero-icon svg{width:28px;height:28px}
+  .hero h1{font-size:28px}
+  .hero p{font-size:15.5px;grid-column:1/-1}
+  .hero .meta{grid-column:1/-1;text-align:left;flex-direction:row;flex-wrap:wrap;gap:4px 16px}
+  .bridge-wrap{margin:4px -6px 0}
+  .node .ring{r:20px;stroke-width:5} .node .core{r:8px} .node .halo{r:30px;stroke-width:5} .node .hit{r:44px}
+  .node .lbl{font-size:34px;transform:translateY(26px)}
+  .trace{grid-template-columns:62px 1fr;gap:8px}
+  .trace .tl span{display:none}
+  .bridge-note,.dim text{display:none}
+  .strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .inst:nth-child(n){border-left:1px solid var(--rule);border-top:1px solid var(--rule)}
+  .inst:nth-child(odd){border-left:0}
+  .inst:nth-child(-n+2){border-top:0}
+  .inst:first-child{grid-column:1/-1;border-left:0}
+  .inst:nth-child(2){grid-column:1/-1;border-top:1px solid var(--rule)}
+  .inst:nth-child(3){border-left:0}
+  .inst:nth-child(4){border-left:1px solid var(--rule)}
+  .inst:nth-child(5){grid-column:1/-1;border-left:0}
+  dl.ni{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .form-grid{grid-template-columns:minmax(0,1fr)}
+  .log li{grid-template-columns:96px 1fr;}
+  .log li .lr{grid-column:1/-1}
+}
+@media (pointer:coarse){
+  .btn,.seg button,input[type=text],input[type=password],input[type=number],select{min-height:44px}
+  .btn.icon{width:44px}
+  .tabs a{padding-top:12px;padding-bottom:12px}
+  label.check{min-height:44px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <pattern id="gp-m" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M10 0H0V10" class="gp-minor"/></pattern>
+    <pattern id="gp" width="50" height="50" patternUnits="userSpaceOnUse"><rect width="50" height="50" fill="url(#gp-m)"/><path d="M50 0H0V50" class="gp-major"/></pattern>
+  </defs>
+</svg>
+
+<header class="top">
+  <div class="top-row">
+    <a class="brand" href="#overview" aria-label="Bridge health, go to overview">
+      <svg width="46" height="28" viewBox="0 0 46 28" aria-hidden="true"><path d="M2 12h42" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M8 12v-5M15 12v-5M23 12v-5M31 12v-5M38 12v-5M6 7h34" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M4 14l-2 10h7l-1-10M42 14l2 10h-7l1-10" fill="currentColor" opacity=".55"/><path d="M10 22c3-2 5 0 8 0s5-2 8 0 5 0 8 0" style="stroke:var(--trace)" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
+      <span><span class="brand-name">Bridge health</span><span class="site" id="site-name">Site bridge01</span></span>
+    </a>
+    <a class="pill" id="conn-pill" href="#connect"><span class="dot"></span><span id="conn-text">Starting</span></a>
+    <button class="btn icon" id="theme-btn" type="button" aria-label="Switch to dark mode" title="Switch light or dark"></button>
+  </div>
+  <nav class="tabs" aria-label="Pages">
+    <a href="#overview" data-page="overview">Overview</a>
+    <a href="#vibration" data-page="vibration">Vibration</a>
+    <a href="#trends" data-page="trends">Trends</a>
+    <a href="#events" data-page="events">Events</a>
+    <a href="#system" data-page="system">System</a>
+    <a href="#connect" data-page="connect">Connect</a>
+  </nav>
+</header>
+
+<div class="demo-bar" id="demo-bar" hidden>
+  <div class="wrap">
+    <span class="msg"><b>Demo mode.</b> A simulated bridge with a week of history; a new capture arrives every 4 seconds.</span>
+    <button class="btn" type="button" id="dmg-btn">Simulate 6% stiffness loss</button>
+    <a class="btn" href="#connect">Connect your bridge</a>
+  </div>
+</div>
+
+<main class="wrap" id="main" tabindex="-1">
+
+<!-- OVERVIEW -->
+<section class="page" id="page-overview" data-page="overview" hidden>
+  <div class="hero mute" id="hero" aria-live="polite"></div>
+
+  <div class="panel bridge-panel">
+    <div class="head-row">
+      <div>
+        <h2>Latest capture, replayed</h2>
+        <p class="sub" id="bp-sub">Each capture is 30 seconds of vibration.</p>
+      </div>
+      <div class="leg-inline" aria-hidden="true">
+        <span><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--ok)" stroke-width="2.5"/></svg>reporting</span>
+        <span><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--warn)" stroke-width="2.5"/></svg>bad data</span>
+        <span><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--bad)" stroke-width="2.5" stroke-dasharray="3 2"/></svg>silent</span>
+        <span><i class="sw-ev"></i>vehicle crossing</span>
+      </div>
+    </div>
+    <div class="bridge-wrap">
+      <svg id="bridge" viewBox="0 76 1000 254" role="group" aria-labelledby="bridge-title">
+        <title id="bridge-title">Side view of the bridge. The deck moves with the measured vibration, greatly exaggerated.</title>
+        <defs>
+          <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" class="abut-bg" style="fill:var(--stone)"/><line x1="0" y1="0" x2="0" y2="7" class="hatch-line"/></pattern>
+          <clipPath id="water-clip"><rect x="0" y="262" width="1000" height="68"/></clipPath>
+        </defs>
+        <path class="hill-far" d="M0 150C90 112 170 128 260 104C350 80 430 120 520 108C610 96 690 70 790 92C880 110 940 96 1000 84V262H0Z"/>
+        <path class="hill-near" d="M0 210C110 176 210 196 320 184C440 170 540 204 660 186C770 170 880 190 1000 176V262H0Z"/>
+        <g class="dim" aria-hidden="true">
+          <path d="M80 128v-10M290 128v-6M500 128v-6M710 128v-6M920 128v-10M80 123H920"/>
+          <text x="290" y="114">¼</text><text x="500" y="114">½ span</text><text x="710" y="114">¾</text>
+        </g>
+        <rect class="water" x="0" y="262" width="1000" height="68"/>
+        <g clip-path="url(#water-clip)">
+          <use href="#deck" class="reflect" transform="translate(0 389.6) scale(1 -0.44)"/>
+          <g class="ripples" aria-hidden="true">
+            <path class="ripple" d="M140 278h40M330 286h56M560 276h34M760 290h50M1020 280h40M1220 286h56"/>
+            <path class="ripple r2" d="M60 302h30M260 312h46M470 300h30M690 316h40M900 304h36M1100 310h46"/>
+          </g>
+        </g>
+        <path class="bank" d="M0 196H70L58 272L40 330H0Z"/>
+        <path class="bank" d="M1000 196H930L942 272L960 330H1000Z"/>
+        <path class="abut" d="M56 200H100L108 282H46Z"/>
+        <path class="abut" d="M944 200H900L892 282H954Z"/>
+        <rect class="road" x="0" y="190" width="82" height="10"/>
+        <rect class="road" x="918" y="190" width="82" height="10"/>
+        <g id="cars"></g>
+        <path id="deck" class="deck" d="M80 190H920V200H80Z"/>
+        <path id="posts" class="posts" d=""/>
+        <path id="rail" class="rail" d=""/>
+        <path class="rail" d="M0 175H82M918 175H1000"/>
+        <path class="posts" d="M10 190v-15M45 190v-15M955 190v-15M990 190v-15"/>
+        <g id="node-layer"></g>
+        <text class="bridge-note" x="992" y="252" text-anchor="end">vertical movement exaggerated</text>
+      </svg>
+      <div class="bridge-empty" id="bridge-empty" hidden><div></div></div>
+    </div>
+    <div class="player">
+      <button class="btn icon" type="button" id="play" aria-label="Play"></button>
+      <input type="range" id="scrub" min="0" max="30" step="0.02" value="0" aria-label="Time within the capture, seconds">
+      <span class="clock" id="clock" aria-live="off">0.0 s of 30</span>
+      <button class="btn primary" type="button" id="newer" hidden>Show the newer capture</button>
+    </div>
+    <div class="traces" id="traces" aria-label="Vertical vibration at each node. Click to jump to a moment."></div>
+    <div class="node-info" id="node-info" aria-live="polite"></div>
+  </div>
+
+  <div class="panel strip" id="strip"></div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <h2>Anomaly score, last 24 hours</h2>
+      <p class="sub">1.0 is the alarm level. Click a point to open that capture.</p>
+      <div class="chart" id="ov-score"></div>
+    </div>
+    <div class="stack">
+      <div class="panel"><h2>Sensor nodes</h2><div id="ov-nodes" class="nodes-list"></div></div>
+      <div class="panel"><div class="head-row"><h2>Recent events</h2><a href="#events" class="sub">All events</a></div><div id="ov-events" style="margin-top:8px"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- VIBRATION -->
+<section class="page" id="page-vibration" data-page="vibration" hidden>
+  <div class="panel">
+    <div class="head-row">
+      <div class="picker">
+        <button class="btn icon" type="button" id="vib-prev" aria-label="Previous capture"><svg viewBox="0 0 20 20"><path d="M12.5 4 6.5 10l6 6" stroke="currentColor" stroke-width="2" fill="none"/></svg></button>
+        <select id="vib-select" aria-label="Choose a capture"></select>
+        <button class="btn icon" type="button" id="vib-next" aria-label="Next capture"><svg viewBox="0 0 20 20"><path d="m7.5 4 6 6-6 6" stroke="currentColor" stroke-width="2" fill="none"/></svg></button>
+        <label class="check"><input type="checkbox" id="vib-follow" checked> Follow latest</label>
+      </div>
+      <div class="row">
+        <span class="live-box" id="live-state" hidden><span class="livedot"></span><span class="countdown" id="live-count"></span></span>
+        <button class="btn" type="button" id="live-btn">Live view (10 min)</button>
+        <button class="btn" type="button" id="live-stop" hidden>Stop live view</button>
+      </div>
+    </div>
+    <div class="row" id="vib-token-row" hidden style="margin-top:10px">
+      <label for="vib-token">Command token</label>
+      <input type="password" id="vib-token" autocomplete="off" placeholder="Needed to send commands" data-token>
+      <span class="sub" style="margin:0">Kept only while this page is open.</span>
+    </div>
+    <div id="vib-summary"></div>
+  </div>
+  <div class="panel">
+    <h2>Vertical vibration at each node</h2>
+    <p class="sub">All nodes share one scale. Shaded bands are vehicle crossings, red dots are spikes, hollow squares are bad sensor reads. Hover to read every node at once.</p>
+    <div class="chart" id="vib-waves"></div>
+  </div>
+  <div class="panel">
+    <div class="head-row">
+      <div><h2>Spectrum</h2><p class="sub" id="spec-sub">Where the vibration energy sits. Peaks are the bridge's natural frequencies.</p></div>
+      <div class="seg" id="spec-mode" role="group" aria-label="Spectrum to show">
+        <button type="button" data-v="avg" aria-pressed="true">Average</button><button type="button" data-v="n1" aria-pressed="false">n1</button><button type="button" data-v="n2" aria-pressed="false">n2</button><button type="button" data-v="n3" aria-pressed="false">n3</button>
+      </div>
+    </div>
+    <div class="chart" id="vib-spec"></div>
+  </div>
+  <div class="panel">
+    <div class="head-row">
+      <div><h2>Full-resolution data</h2><p class="sub">200 samples a second on all three axes. The base station sends these on alarm or when asked.</p></div>
+      <div class="row">
+        <label class="btn" for="npz-file">Open raw file (.npz)</label>
+        <input type="file" id="npz-file" accept=".npz,application/zip,application/octet-stream" class="sr">
+        <button class="btn" type="button" id="req-raw">Ask for this capture's raw file</button>
+      </div>
+    </div>
+    <div class="row" id="raw-controls" hidden style="margin-top:6px">
+      <select id="raw-select" aria-label="Raw file to show"></select>
+      <div class="seg" id="raw-axis" role="group" aria-label="Axis">
+        <button type="button" data-v="x" aria-pressed="false">X</button><button type="button" data-v="y" aria-pressed="false">Y</button><button type="button" data-v="z" aria-pressed="true">Z (vertical)</button>
+      </div>
+    </div>
+    <div id="raw-view"><div class="empty-chart">No raw file open. Open a .npz file, or ask the base station for the capture shown above.</div></div>
+  </div>
+</section>
+
+<!-- TRENDS -->
+<section class="page" id="page-trends" data-page="trends" hidden>
+  <div class="panel head-row" style="align-items:center">
+    <div><h2>Trends</h2><p class="sub" id="tr-sub" style="margin:0">How the bridge's behaviour moves over time.</p></div>
+    <div class="seg" id="tr-range" role="group" aria-label="Time range">
+      <button type="button" data-v="6h" aria-pressed="false">6 h</button><button type="button" data-v="24h" aria-pressed="true">24 h</button><button type="button" data-v="7d" aria-pressed="false">7 days</button><button type="button" data-v="all" aria-pressed="false">All</button>
+    </div>
+  </div>
+  <div class="grid-2e">
+    <div class="panel"><h2>Anomaly score</h2><p class="sub">1.0 is the alarm level.</p><div class="chart" id="tr-score"></div></div>
+    <div class="panel"><h2>Natural frequencies, change from healthy</h2><p class="sub" id="tr-freq-sub">A drop of more than 3 % deserves a look.</p><div class="chart" id="tr-freq"></div></div>
+    <div class="panel"><h2>Mode shape match</h2><p class="sub">1 means the bridge bends exactly as when healthy.</p><div class="chart" id="tr-mac"></div></div>
+    <div class="panel"><h2>Deck temperature</h2><p class="sub">Warm steel and concrete are slightly softer, so frequencies dip on hot afternoons.</p><div class="chart" id="tr-temp"></div></div>
+  </div>
+  <div class="panel">
+    <div class="head-row"><h2>Captures</h2><span class="sub" id="tr-count"></span></div>
+    <div class="table-wrap" style="margin-top:8px;max-height:560px;overflow:auto"><table class="tbl" id="tr-table"></table></div>
+    <div class="row" style="margin-top:10px"><button class="btn" type="button" id="tr-more" hidden>Show more</button></div>
+  </div>
+</section>
+
+<!-- EVENTS -->
+<section class="page" id="page-events" data-page="events" hidden>
+  <div class="panel">
+    <div class="head-row" style="align-items:center">
+      <div><h2>Events</h2><p class="sub" style="margin:0">State changes and faults reported by the base station.</p></div>
+      <div class="seg" id="ev-filter" role="group" aria-label="Show">
+        <button type="button" data-v="all" aria-pressed="true">All</button><button type="button" data-v="state" aria-pressed="false">Alarms and warnings</button><button type="button" data-v="fault" aria-pressed="false">Faults</button>
+      </div>
+    </div>
+    <div id="ev-list" style="margin-top:16px"></div>
+  </div>
+</section>
+
+<!-- SYSTEM -->
+<section class="page" id="page-system" data-page="system" hidden>
+  <div class="panel"><div class="head-row"><div><h2>Base station</h2><p class="sub" id="sys-sub" style="margin:0">From the latest heartbeat (sent every 15 minutes).</p></div><span id="sys-online"></span></div><div id="sys-facts"></div></div>
+  <div class="grid-2e">
+    <div class="panel"><h2>Sensor nodes</h2><div id="sys-nodes"></div></div>
+    <div class="panel"><h2>Active faults</h2><div id="sys-faults"></div></div>
+  </div>
+  <div class="panel">
+    <h2>Remote commands</h2>
+    <p class="sub">Commands go to the base station through the broker. Each one needs the command token; it is kept in memory only and forgotten when you close the page.</p>
+    <div class="field" style="max-width:380px;margin-bottom:0">
+      <label for="sys-token">Command token</label>
+      <input type="password" id="sys-token" autocomplete="off" data-token>
+    </div>
+    <div class="cmd-grid">
+      <div class="cmd"><h3>Ping</h3><p>Check that the base station is listening.</p><div><button class="btn" type="button" data-cmd="ping">Send ping</button></div></div>
+      <div class="cmd"><h3>Status report</h3><p>Ask for an immediate heartbeat.</p><div><button class="btn" type="button" data-cmd="status">Request status</button></div></div>
+      <div class="cmd"><h3>Test SMS</h3><p>Send a test text to the alarm phone numbers.</p><div><button class="btn" type="button" data-cmd="sms_test">Send test SMS</button></div></div>
+      <div class="cmd"><h3>Mode</h3><p>Monitor scores each capture. Collect only records data for retraining.</p><div class="row"><select id="cmd-mode" aria-label="Mode"><option value="monitor">Monitor</option><option value="collect">Collect</option></select><button class="btn" type="button" data-cmd="set_mode">Set mode</button></div></div>
+      <div class="cmd"><h3>Raw file</h3><p>Ask for the full-resolution .npz of one capture.</p><div class="row"><input type="text" id="cmd-raw-id" placeholder="Capture ID" aria-label="Capture ID" style="width:170px"><button class="btn" type="button" data-cmd="send_raw">Request</button></div></div>
+      <div class="cmd"><h3>Live view</h3><p>Record back to back; a new window about every 30 s.</p><div class="row"><input type="number" id="cmd-live-min" min="1" max="30" value="10" aria-label="Minutes"><span>min</span><button class="btn" type="button" data-cmd="live_view">Start</button><button class="btn" type="button" data-cmd="live_stop">Stop</button></div></div>
+    </div>
+    <h3 style="margin-top:18px">Replies</h3>
+    <ul class="log" id="cmd-log"><li class="c-mute" style="display:block">Nothing sent yet.</li></ul>
+  </div>
+</section>
+
+<!-- CONNECT -->
+<section class="page" id="page-connect" data-page="connect" hidden>
+  <div class="notice" id="artifact-note" hidden><b>Live connections are blocked in this viewer.</b> This page is running inside the claude.ai viewer, which does not allow connections to outside servers. Download the file and open it directly in Chrome (double-click it, or drag it into a browser window); demo mode and history files work here.</div>
+  <div class="grid-2">
+    <div class="panel">
+      <h2>Broker connection</h2>
+      <p class="sub">The base station sends its results through your EMQX Cloud broker. Use the dashboard's own login, not the Pi's.</p>
+      <form id="conn-form" autocomplete="on" novalidate>
+        <div class="field">
+          <label for="f-addr">Broker address</label>
+          <input type="text" id="f-addr" aria-describedby="f-addr-help" placeholder="e.g. k1a2b3c4.ala.asia-southeast1.emqxsl.com" spellcheck="false" autocapitalize="off">
+          <span class="help" id="f-addr-help">Paste the address from the EMQX console. It becomes wss://address:8084/mqtt.</span>
+        </div>
+        <div class="form-grid">
+          <div class="field"><label for="f-user">Username</label><input type="text" id="f-user" autocomplete="username" spellcheck="false" autocapitalize="off"></div>
+          <div class="field"><label for="f-pass">Password</label><div class="pw-wrap"><input type="password" id="f-pass" autocomplete="current-password"><button class="btn" type="button" id="f-pass-show" aria-pressed="false">Show</button></div></div>
+        </div>
+        <div class="field" style="max-width:260px"><label for="f-site">Site ID</label><input type="text" id="f-site" value="bridge01" spellcheck="false" autocapitalize="off"><span class="help">Messages are read from shm/site ID/.</span></div>
+        <label class="check"><input type="checkbox" id="f-remember"> Remember on this device</label>
+        <div class="row" style="margin-top:14px">
+          <button class="btn primary" type="submit" id="f-connect">Connect</button>
+          <button class="btn" type="button" id="f-disconnect" disabled>Disconnect</button>
+          <button class="btn" type="button" id="f-forget">Forget saved details</button>
+        </div>
+      </form>
+      <div class="conn-msg" id="conn-msg" aria-live="polite"></div>
+    </div>
+    <div class="stack">
+      <div class="panel">
+        <h2>History file</h2>
+        <p class="sub">The broker only passes on new messages. For past days, open remote.sqlite from the laptop receiver.</p>
+        <div class="drop" id="drop">
+          <label class="btn primary" for="f-sqlite">Open remote.sqlite</label>
+          <input type="file" id="f-sqlite" accept=".sqlite,.sqlite3,.db,application/x-sqlite3,application/octet-stream" class="sr">
+          <p class="hint" style="margin-bottom:0">or drop the file here</p>
+        </div>
+        <div id="file-msg" aria-live="polite" style="margin-top:10px"></div>
+      </div>
+      <div class="panel">
+        <h2>Demo mode</h2>
+        <p class="sub">A simulated bridge with a week of history, for trying things out. It starts on its own when nothing is set up.</p>
+        <div class="row"><button class="btn" type="button" id="demo-toggle">Start demo</button><button class="btn" type="button" id="demo-dmg2">Simulate 6% stiffness loss</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+<footer class="wrap foot">Vibration is measured by three accelerometer nodes at a quarter, half and three quarters of the span. Scores come from an autoencoder trained on this bridge's normal behaviour.</footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>

@@ -1,0 +1,2548 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bridge health monitor</title>
+<meta name="description" content="Structural health monitoring dashboard for a road bridge: live vibration, anomaly score, trends and base station status.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;1,400&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#edf1ec; --panel:#f6f8f5; --panel2:#e9eee8; --rule:#cbd5cd; --rule2:#dde4de;
+  --ink:#1d2b35; --ink2:#46565f; --ink3:#5c6c75;
+  --trace:#1d5c8f; --trace-soft:rgba(29,92,143,.12); --focus:#1d5c8f;
+  --c1:#1d5c8f; --c2:#7a4e9c; --c3:#5d6d75; --typ:#a3aea8;
+  --ok:#276b42; --ok-bg:#dcebdf; --warn:#8f5a0a; --warn-bg:#f4e7cc; --bad:#b4372b; --bad-bg:#f4dcd8; --info:#1d5c8f; --info-bg:#dce6ee;
+  --paper-minor:rgba(29,92,143,.055); --paper-major:rgba(29,92,143,.11);
+  --water:#cfdee4; --water2:#b5cbd5; --hill:#e2e9e1; --hill2:#d6e0d5; --bank:#cdd8cb;
+  --stone:#d3d8cf; --stone-line:#a7b0a6; --deck:#2b3a44; --rail:#5b6a73; --sky:#edf1ec;
+  --ev:rgba(168,104,15,.10);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#10171c; --panel:#152027; --panel2:#1a262e; --rule:#2a3a44; --rule2:#21303a;
+    --ink:#dce7ec; --ink2:#a9b9c1; --ink3:#8b9ca6;
+    --trace:#9cc9ee; --trace-soft:rgba(156,201,238,.14); --focus:#9cc9ee;
+    --c1:#9cc9ee; --c2:#cfaef0; --c3:#a8b7be; --typ:#4d5c64;
+    --ok:#5cc28a; --ok-bg:#163026; --warn:#e5ab4c; --warn-bg:#382a12; --bad:#f2786b; --bad-bg:#3c1c19; --info:#9cc9ee; --info-bg:#1a2c3a;
+    --paper-minor:rgba(156,201,238,.045); --paper-major:rgba(156,201,238,.09);
+    --water:#11263a; --water2:#1a3650; --hill:#131e25; --hill2:#17242c; --bank:#1b2a33;
+    --stone:#26333b; --stone-line:#3d4d57; --deck:#c9d6dc; --rail:#7d909a; --sky:#10171c;
+    --ev:rgba(229,171,76,.10);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#10171c; --panel:#152027; --panel2:#1a262e; --rule:#2a3a44; --rule2:#21303a;
+  --ink:#dce7ec; --ink2:#a9b9c1; --ink3:#8b9ca6;
+  --trace:#9cc9ee; --trace-soft:rgba(156,201,238,.14); --focus:#9cc9ee;
+  --c1:#9cc9ee; --c2:#cfaef0; --c3:#a8b7be; --typ:#4d5c64;
+  --ok:#5cc28a; --ok-bg:#163026; --warn:#e5ab4c; --warn-bg:#382a12; --bad:#f2786b; --bad-bg:#3c1c19; --info:#9cc9ee; --info-bg:#1a2c3a;
+  --paper-minor:rgba(156,201,238,.045); --paper-major:rgba(156,201,238,.09);
+  --water:#11263a; --water2:#1a3650; --hill:#131e25; --hill2:#17242c; --bank:#1b2a33;
+  --stone:#26333b; --stone-line:#3d4d57; --deck:#c9d6dc; --rail:#7d909a; --sky:#10171c;
+  --ev:rgba(229,171,76,.10);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 Barlow,"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;min-height:100vh}
+h1,h2,h3,.cond,.num,.btn,.tabs a{font-family:"Barlow Semi Condensed","Arial Narrow",Barlow,system-ui,sans-serif}
+.num{font-variant-numeric:tabular-nums}
+a{color:var(--trace)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+[hidden]{display:none!important}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px}
+.skip{position:absolute;left:12px;top:-60px;z-index:60;background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:6px;font-weight:600;text-decoration:none}
+.skip:focus{top:10px}
+main:focus{outline:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* header */
+header.top{border-bottom:1px solid var(--rule);background:var(--bg);position:sticky;top:env(safe-area-inset-top,0px);z-index:20}
+.top-row{display:flex;align-items:center;gap:12px;padding:12px 20px 4px}
+.brand{display:flex;align-items:center;gap:12px;margin-right:auto;min-width:0;color:var(--ink);text-decoration:none}
+.brand svg{flex:none}
+.brand-name{font-family:"Barlow Semi Condensed",sans-serif;font-size:22px;font-weight:600;line-height:1.1;display:block}
+.brand .site{color:var(--ink2);font-size:14px;display:block}
+.pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--rule);border-radius:999px;padding:4px 11px;font-size:14px;background:var(--panel);white-space:nowrap;color:var(--ink);text-decoration:none}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--ink3);flex:none}
+.pill.live .dot{background:var(--ok);box-shadow:0 0 0 3px var(--ok-bg)}
+.pill.demo .dot{background:var(--info)}
+.pill.busy .dot{background:var(--warn)}
+.pill.err .dot{background:var(--bad)}
+.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:0 20px}
+.tabs::-webkit-scrollbar{display:none}
+.tabs a{padding:9px 12px 10px;color:var(--ink2);text-decoration:none;border-bottom:3px solid transparent;white-space:nowrap;font-weight:600;font-size:16.5px}
+.tabs a:hover{color:var(--ink)}
+.tabs a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--trace)}
+.tabs a .tab-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:6px;vertical-align:2px;background:var(--bad)}
+
+.demo-bar{background:var(--info-bg);border-bottom:1px solid var(--rule)}
+.demo-bar .wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px;font-size:15px}
+.demo-bar .msg{margin-right:auto}
+
+main{padding-top:20px;padding-bottom:40px}
+.page{display:flex;flex-direction:column;gap:16px}
+.panel{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:16px 18px}
+.panel h2{font-size:20px;line-height:1.2;margin:0 0 2px;font-weight:600}
+.panel h3{font-size:17px;margin:0 0 6px;font-weight:600}
+.sub{color:var(--ink2);font-size:14.5px;margin:0 0 10px}
+.hint{color:var(--ink2);font-size:15px;margin:6px 0}
+.head-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.grid-2{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start}
+.grid-2e{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.stack{display:flex;flex-direction:column;gap:16px;min-width:0}
+
+/* controls */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);border-radius:6px;padding:6px 13px;cursor:pointer;min-height:38px;font-size:16px;font-weight:600;text-decoration:none;line-height:1.1}
+.btn{transition:background-color .15s ease,border-color .15s ease,color .15s ease,transform .1s ease}
+.btn:hover{border-color:var(--trace);background-color:var(--panel2)}
+.btn.primary:hover{background-color:var(--trace)}
+.btn:active:not(:disabled){transform:translateY(1px) scale(.98)}
+.seg button{transition:background-color .15s ease,color .15s ease}
+.seg button:hover:not([aria-pressed="true"]){background:var(--panel2);color:var(--ink)}
+.tabs a{transition:color .15s ease,border-color .2s ease}
+.node .ring{transition:stroke-width .15s ease}
+.node:hover .ring{stroke-width:4}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.primary{background:var(--trace);border-color:var(--trace);color:var(--panel)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+.btn.icon{padding:6px;width:40px;min-height:40px}
+.btn svg{width:18px;height:18px;flex:none}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:6px;overflow:hidden;background:var(--panel)}
+.seg button{font:600 15px "Barlow Semi Condensed",sans-serif;border:0;background:none;color:var(--ink2);padding:7px 12px;cursor:pointer;min-height:36px}
+.seg button+button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed="true"]{background:var(--trace);color:var(--panel)}
+input[type=text],input[type=password],input[type=number],select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--rule);border-radius:6px;padding:7px 10px;min-height:38px;max-width:100%}
+input:focus-visible,select:focus-visible{outline:2px solid var(--focus);outline-offset:0}
+label.check{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+label.check input{width:18px;height:18px;accent-color:var(--trace)}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.field label{font-weight:600}
+.field .help{font-size:14px;color:var(--ink2)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+
+.badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:1px 9px;font:600 14px "Barlow Semi Condensed",sans-serif;white-space:nowrap;background:var(--panel2);color:var(--ink2)}
+.badge.ok{background:var(--ok-bg);color:var(--ok)}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.badge.bad{background:var(--bad-bg);color:var(--bad)}
+.badge.info{background:var(--info-bg);color:var(--info)}
+.c-ok{color:var(--ok)} .c-warn{color:var(--warn)} .c-bad{color:var(--bad)} .c-mute{color:var(--ink3)}
+
+/* hero */
+.hero{display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center;border:1px solid var(--rule);border-radius:8px;background:var(--panel);padding:18px 20px;position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0 auto 0 0;width:6px;background:var(--hero-c,var(--ink3))}
+.hero{animation:rise .45s cubic-bezier(.2,.7,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.hero.ok{--hero-c:var(--ok);--hero-bg:var(--ok-bg)} .hero.warn{--hero-c:var(--warn);--hero-bg:var(--warn-bg)} .hero.bad{--hero-c:var(--bad);--hero-bg:var(--bad-bg)} .hero.info{--hero-c:var(--info);--hero-bg:var(--info-bg)} .hero.mute{--hero-c:var(--ink3);--hero-bg:var(--panel2)}
+.hero-icon{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:var(--hero-bg,var(--panel2));color:var(--hero-c)}
+.hero-icon svg{width:36px;height:36px}
+.hero.bad .hero-icon{animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 var(--bad-bg)}50%{box-shadow:0 0 0 10px transparent}}
+.hero h1{font-size:40px;line-height:1.05;margin:0 0 6px;font-weight:700;letter-spacing:-.005em}
+.hero p{margin:0;color:var(--ink2);font-size:17px;max-width:68ch}
+.hero .meta{display:flex;flex-direction:column;gap:2px;text-align:right;font-size:15px;color:var(--ink2);white-space:nowrap}
+.hero .meta b{color:var(--ink);font-family:"Barlow Semi Condensed",sans-serif;font-size:17px}
+
+/* bridge */
+.bridge-panel{padding:14px 18px 16px}
+.bridge-wrap{position:relative;margin:4px -8px 0;border-radius:6px;overflow:hidden}
+#bridge{width:100%;height:auto;display:block;touch-action:manipulation}
+.hill-far{fill:var(--hill)} .hill-near{fill:var(--hill2)}
+.bank{fill:var(--bank)}
+.abut{fill:url(#hatch);stroke:var(--stone-line);stroke-width:1.2}
+.abut-bg{fill:var(--stone)}
+.hatch-line{stroke:var(--stone-line);stroke-width:1}
+.water{fill:var(--water)}
+.ripple{stroke:var(--water2);stroke-width:2;stroke-linecap:round;fill:none;animation:drift 7s linear infinite}
+.ripple.r2{animation-duration:11s;opacity:.7}
+@keyframes drift{from{transform:translateX(0)}to{transform:translateX(-80px)}}
+.road{fill:var(--deck)}
+.deck{fill:var(--deck)}
+.reflect{opacity:.08}
+.rail{fill:none;stroke:var(--rail);stroke-width:1.6}
+.posts{stroke:var(--rail);stroke-width:1.4;fill:none}
+.dim line,.dim path{stroke:var(--ink3);stroke-width:1;fill:none}
+.dim text{fill:var(--ink3);font:500 14px Barlow,sans-serif;text-anchor:middle}
+.bridge-note{fill:var(--ink3);font:italic 13px Barlow,sans-serif}
+.node{cursor:pointer;outline:none}
+.node .hit{fill:transparent;r:26px}
+.node .ring{fill:var(--panel);stroke-width:3;r:9px}
+.node .core{r:3.5px;fill:currentColor}
+.node .halo{fill:none;stroke:var(--focus);stroke-width:2.5;opacity:0;r:15px}
+.node:focus-visible .halo,.node.sel .halo{opacity:1}
+.node .leader{stroke:var(--ink3);stroke-width:1;stroke-dasharray:2 3}
+.node .lbl{font:600 16px "Barlow Semi Condensed",sans-serif;fill:var(--ink);text-anchor:middle}
+.node.ok{color:var(--ok)} .node.ok .ring{stroke:var(--ok)}
+.node.bad{color:var(--warn)} .node.bad .ring{stroke:var(--warn)}
+.node.silent{color:var(--bad)} .node.silent .ring{stroke:var(--bad);stroke-dasharray:4 3}
+.node.none{color:var(--ink3)} .node.none .ring{stroke:var(--ink3)}
+.car .body{fill:var(--trace)} .car .win{fill:var(--sky)} .car .wheel{fill:var(--ink)}
+.bridge-empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:20px;background:color-mix(in srgb,var(--panel) 75%,transparent)}
+.bridge-empty div{max-width:440px}
+.player{display:flex;align-items:center;gap:12px;margin-top:8px}
+.player input[type=range]{flex:1;accent-color:var(--trace);min-width:80px;height:28px}
+.clock{font:600 17px "Barlow Semi Condensed",sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:92px;text-align:right}
+.traces{display:flex;flex-direction:column;gap:4px;margin-top:10px}
+.trace{display:grid;grid-template-columns:118px 1fr;align-items:center;gap:10px}
+.trace .tl{font-size:14px;color:var(--ink2);line-height:1.15;cursor:pointer;border-radius:4px}
+.trace .tl b{font:600 16px "Barlow Semi Condensed",sans-serif;color:var(--ink);margin-right:5px}
+.trace .tl i{display:inline-block;width:10px;height:3px;border-radius:2px;vertical-align:4px;margin-right:6px}
+.tw{position:relative;height:50px;border:1px solid var(--rule2);border-radius:5px;overflow:hidden;cursor:crosshair;background:var(--bg)}
+.tw svg{width:100%;height:100%;display:block}
+.tw .tr{fill:none;stroke-width:1.2;vector-effect:non-scaling-stroke}
+.tw .zero{stroke:var(--rule);stroke-width:1;vector-effect:non-scaling-stroke}
+.tw .ev-band{fill:var(--ev)}
+.tw .ph{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--bad);pointer-events:none;left:0}
+.tw-empty{position:absolute;inset:0;display:grid;place-items:center;font-size:14px;color:var(--ink3)}
+.trace.sel .tw{border-color:var(--focus)}
+.node-info{margin-top:12px;border-top:1px solid var(--rule2);padding-top:10px;min-height:46px}
+.ni-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.ni-head b{font:600 18px "Barlow Semi Condensed",sans-serif}
+dl.ni{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px 16px;margin:0}
+dl.ni dt{font-size:13.5px;color:var(--ink2)}
+dl.ni dd{margin:0;font:600 18px "Barlow Semi Condensed",sans-serif;font-variant-numeric:tabular-nums}
+.leg-inline{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;color:var(--ink2);align-items:center}
+.leg-inline span{display:inline-flex;align-items:center;gap:6px}
+.sw-ev{display:inline-block;width:16px;height:10px;background:var(--ev);border:1px solid var(--warn);border-radius:2px}
+
+/* instrument strip */
+.strip{display:grid;grid-template-columns:1.15fr 1.5fr 1fr 1fr 1fr;padding:0}
+.inst{padding:14px 16px;border-left:1px solid var(--rule);min-width:0}
+.inst:first-child{border-left:0}
+.inst .lab{font-size:14.5px;color:var(--ink2);margin-bottom:2px}
+.inst .big{font:600 30px/1.05 "Barlow Semi Condensed",sans-serif;font-variant-numeric:tabular-nums}
+.inst .big small{font-size:17px;font-weight:500;color:var(--ink2);margin-left:3px}
+.inst .note{font-size:14px;color:var(--ink2);margin-top:3px}
+.gauge-row{display:flex;align-items:center;gap:10px}
+.gauge{width:104px;height:62px;flex:none}
+.gauge .g-bg{stroke:var(--rule);stroke-width:9;fill:none;stroke-linecap:round}
+.gauge .g-val{stroke-width:9;fill:none;stroke-linecap:round}
+.gauge .g-tick{stroke:var(--bad);stroke-width:3}
+.gauge .g-needle{stroke:var(--ink);stroke-width:2.5;stroke-linecap:round}
+.gauge text{font:500 11px Barlow,sans-serif;fill:var(--ink3)}
+.freqs{display:grid;grid-template-columns:auto auto 1fr;gap:1px 10px;align-items:baseline}
+.freqs .m{font-size:14px;color:var(--ink2)}
+.freqs .v{font:600 22px "Barlow Semi Condensed",sans-serif;font-variant-numeric:tabular-nums}
+.freqs .d{font:600 16px "Barlow Semi Condensed",sans-serif;font-variant-numeric:tabular-nums;color:var(--ink2)}
+.freqs .d.low{color:var(--bad)}
+.sigbars{display:inline-flex;gap:2px;align-items:flex-end;height:22px;margin-right:6px;vertical-align:-2px}
+.sigbars i{width:5px;background:var(--rule);border-radius:1px}
+.sigbars i.on{background:var(--ink)}
+
+/* charts */
+.chart{position:relative;min-height:60px}
+.chart-box{position:relative}
+.chart-svg{display:block;width:100%;height:auto;overflow:visible;user-select:none}
+.chart-svg text{font:500 12.5px Barlow,sans-serif;fill:var(--ink2)}
+.chart-svg .paper{fill:url(#gp)}
+.gp-minor{stroke:var(--paper-minor);stroke-width:1;fill:none}
+.gp-major{stroke:var(--paper-major);stroke-width:1;fill:none}
+.chart-svg .frame{fill:none;stroke:var(--rule)}
+.chart-svg .grid{stroke:var(--rule2);stroke-width:1}
+.chart-svg .ser{fill:none;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
+.chart-svg .ref{stroke-width:1.5;stroke-dasharray:6 4}
+.chart-svg .ref.alarm{stroke:var(--bad)} .chart-svg .ref.warn{stroke:var(--warn)} .chart-svg .ref.zero{stroke:var(--ink3);stroke-dasharray:2 3;stroke-width:1}
+.chart-svg .ref-lab{font-size:12px}
+.chart-svg .ref-lab.alarm{fill:var(--bad)} .chart-svg .ref-lab.warn{fill:var(--warn)}
+.chart-svg .vline{stroke-width:1.4}
+.chart-svg .vline.base{stroke:var(--ink3);stroke-dasharray:4 4}
+.chart-svg .vline.now{stroke:var(--ink)}
+.chart-svg .vline.now.low{stroke:var(--bad)}
+.chart-svg .vlab{font:600 12.5px "Barlow Semi Condensed",sans-serif;fill:var(--ink)}
+.chart-svg .vlab.low{fill:var(--bad)}
+.chart-svg .band{fill:var(--ev)}
+.chart-svg .dot{stroke:var(--panel);stroke-width:1}
+.chart-svg .dot.warn{fill:var(--warn)} .chart-svg .dot.bad{fill:var(--bad)}
+.chart-svg .xhair{stroke:var(--ink);stroke-width:1;stroke-dasharray:3 3;pointer-events:none}
+.chart-svg .hit{fill:transparent;cursor:crosshair}
+.chart-svg .hit.clickable{cursor:pointer}
+.chart-svg .hdot{stroke:var(--panel);stroke-width:2;pointer-events:none}
+.chart-svg .zero{stroke:var(--rule);stroke-width:1}
+.chart-svg .wave{fill:none;stroke-width:1.1;stroke-linejoin:round}
+.chart-svg .spike{fill:var(--bad);stroke:var(--panel);stroke-width:1}
+.chart-svg .glitch{fill:none;stroke:var(--warn);stroke-width:1.8}
+.chart-svg .rowlab{font:600 15px "Barlow Semi Condensed",sans-serif;fill:var(--ink)}
+.chart-svg .rowsub{font-size:12px;fill:var(--ink3)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:14px;color:var(--ink2);margin:0 0 6px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:18px;height:0;border-top:2.5px solid;border-radius:2px}
+.legend i.dash{border-top-style:dashed}
+.tip{position:absolute;top:8px;z-index:5;background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:7px 10px;font-size:13.5px;pointer-events:none;min-width:130px;max-width:260px;line-height:1.35}
+.tip .tt{font:600 14.5px "Barlow Semi Condensed",sans-serif;margin-bottom:3px}
+.tip b{font-family:"Barlow Semi Condensed",sans-serif;font-variant-numeric:tabular-nums}
+.tip .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
+.tip .tx{color:var(--ink2);margin-top:3px;font-size:13px}
+.empty-chart{display:grid;place-items:center;min-height:140px;text-align:center;color:var(--ink2);border:1px dashed var(--rule);border-radius:6px;padding:16px;font-size:15px;background:var(--bg)}
+
+/* lists */
+.nodes-list{display:flex;flex-direction:column}
+.nrow{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--rule2)}
+.nrow:first-child{border-top:0}
+.nrow .d{width:12px;height:12px;border-radius:50%}
+.nrow .t{font-size:14px;color:var(--ink2)}
+.timeline{list-style:none;margin:0;padding:0;position:relative}
+.timeline li{position:relative;padding:0 0 14px 26px}
+.timeline li::before{content:"";position:absolute;left:6px;top:14px;bottom:-2px;width:2px;background:var(--rule2)}
+.timeline li:last-child::before{display:none}
+.timeline .mk{position:absolute;left:0;top:4px;width:14px;height:14px;border-radius:50%;border:3px solid var(--panel);background:var(--ink3);box-shadow:0 0 0 1px var(--rule)}
+.timeline .mk.ok{background:var(--ok)} .timeline .mk.warn{background:var(--warn)} .timeline .mk.bad{background:var(--bad)} .timeline .mk.info{background:var(--info)}
+.timeline .when{font-size:13.5px;color:var(--ink3)}
+.timeline .what{font-weight:600}
+.timeline .why{font-size:14.5px;color:var(--ink2)}
+.day-head{font:600 16px "Barlow Semi Condensed",sans-serif;color:var(--ink2);margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--rule2)}
+.day-head:first-child{margin-top:0}
+
+/* vibration */
+.picker{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.picker select{min-width:0;flex:1 1 230px;max-width:340px}
+.summary{display:flex;flex-wrap:wrap;gap:6px 18px;margin:12px 0 0;align-items:baseline}
+.kv{font-size:14.5px;color:var(--ink2)}
+.kv b{color:var(--ink);font:600 17px "Barlow Semi Condensed",sans-serif;font-variant-numeric:tabular-nums;margin-left:3px}
+.why-line{margin:8px 0 0;font-size:15.5px}
+.live-box{display:inline-flex;align-items:center;gap:8px}
+.countdown{font:600 16px "Barlow Semi Condensed",sans-serif;color:var(--ok);font-variant-numeric:tabular-nums}
+.livedot{width:9px;height:9px;border-radius:50%;background:var(--ok);animation:blink 1.2s ease-in-out infinite}
+@keyframes blink{50%{opacity:.25}}
+.raw-meta{font-size:14.5px;color:var(--ink2);margin:8px 0}
+
+/* table */
+.table-wrap{overflow-x:auto;border:1px solid var(--rule2);border-radius:6px}
+table.tbl{border-collapse:collapse;width:100%;font-size:14.5px;white-space:nowrap}
+.tbl th{text-align:left;font:600 14.5px "Barlow Semi Condensed",sans-serif;color:var(--ink2);padding:8px 10px;border-bottom:1px solid var(--rule);background:var(--panel2);position:sticky;top:0}
+.tbl td{padding:6px 10px;border-bottom:1px solid var(--rule2);font-variant-numeric:tabular-nums}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .r{text-align:right}
+.tbl tbody tr:hover{background:var(--trace-soft)}
+
+/* system */
+dl.facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px 20px;margin:6px 0 0}
+dl.facts dt{font-size:14px;color:var(--ink2)}
+dl.facts dd{margin:0;font:600 20px "Barlow Semi Condensed",sans-serif;font-variant-numeric:tabular-nums}
+dl.facts dd small{font:400 14px Barlow,sans-serif;color:var(--ink2)}
+.cmd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-top:12px}
+.cmd{border:1px solid var(--rule2);border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--bg)}
+.cmd p{margin:0;font-size:14.5px;color:var(--ink2)}
+.cmd .row input{width:110px}
+.log{list-style:none;margin:10px 0 0;padding:0;font-size:14.5px}
+.log li{padding:7px 0;border-top:1px solid var(--rule2);display:grid;grid-template-columns:100px 100px 1fr;gap:10px}
+.log li:first-child{border-top:0}
+
+/* connect */
+.notice{border:1px solid var(--warn);background:var(--warn-bg);border-radius:8px;padding:12px 14px;font-size:15.5px}
+.notice.bad{border-color:var(--bad);background:var(--bad-bg)}
+.notice.ok{border-color:var(--ok);background:var(--ok-bg)}
+.notice.info{border-color:var(--info);background:var(--info-bg)}
+.conn-msg{margin-top:12px}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
+.pw-wrap{display:flex;gap:6px}
+.pw-wrap input{flex:1;min-width:0}
+.drop{border:1.5px dashed var(--rule);border-radius:8px;padding:18px;text-align:center;background:var(--bg)}
+.drop.over{border-color:var(--trace);background:var(--trace-soft)}
+
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:15px;transition:.25s;pointer-events:none;z-index:50;max-width:calc(100vw - 32px)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+footer.foot{color:var(--ink3);font-size:13.5px;padding-bottom:28px}
+
+@media (max-width:1000px){
+  .strip{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .inst:nth-child(4){border-left:0}
+  .inst:nth-child(n+4){border-top:1px solid var(--rule)}
+  .grid-2,.grid-2e{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:640px){
+  .wrap{padding:0 16px}
+  .top-row{padding:10px 16px 2px}
+  .tabs{padding:0 10px}
+  .brand-name{font-size:19px}
+  .pill{font-size:13px;padding:3px 9px}
+  main{padding-top:14px}
+  .panel{padding:14px}
+  .hero{grid-template-columns:auto 1fr;padding:14px 14px 14px 18px;gap:12px}
+  .hero-icon{width:48px;height:48px} .hero-icon svg{width:28px;height:28px}
+  .hero h1{font-size:28px}
+  .hero p{font-size:15.5px;grid-column:1/-1}
+  .hero .meta{grid-column:1/-1;text-align:left;flex-direction:row;flex-wrap:wrap;gap:4px 16px}
+  .bridge-wrap{margin:4px -6px 0}
+  .node .ring{r:20px;stroke-width:5} .node .core{r:8px} .node .halo{r:30px;stroke-width:5} .node .hit{r:44px}
+  .node .lbl{font-size:34px;transform:translateY(26px)}
+  .trace{grid-template-columns:62px 1fr;gap:8px}
+  .trace .tl span{display:none}
+  .bridge-note,.dim text{display:none}
+  .strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .inst:nth-child(n){border-left:1px solid var(--rule);border-top:1px solid var(--rule)}
+  .inst:nth-child(odd){border-left:0}
+  .inst:nth-child(-n+2){border-top:0}
+  .inst:first-child{grid-column:1/-1;border-left:0}
+  .inst:nth-child(2){grid-column:1/-1;border-top:1px solid var(--rule)}
+  .inst:nth-child(3){border-left:0}
+  .inst:nth-child(4){border-left:1px solid var(--rule)}
+  .inst:nth-child(5){grid-column:1/-1;border-left:0}
+  dl.ni{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .form-grid{grid-template-columns:minmax(0,1fr)}
+  .log li{grid-template-columns:96px 1fr;}
+  .log li .lr{grid-column:1/-1}
+}
+@media (pointer:coarse){
+  .btn,.seg button,input[type=text],input[type=password],input[type=number],select{min-height:44px}
+  .btn.icon{width:44px}
+  .tabs a{padding-top:12px;padding-bottom:12px}
+  label.check{min-height:44px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <pattern id="gp-m" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M10 0H0V10" class="gp-minor"/></pattern>
+    <pattern id="gp" width="50" height="50" patternUnits="userSpaceOnUse"><rect width="50" height="50" fill="url(#gp-m)"/><path d="M50 0H0V50" class="gp-major"/></pattern>
+  </defs>
+</svg>
+
+<header class="top">
+  <div class="top-row">
+    <a class="brand" href="#overview" aria-label="Bridge health, go to overview">
+      <svg width="46" height="28" viewBox="0 0 46 28" aria-hidden="true"><path d="M2 12h42" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M8 12v-5M15 12v-5M23 12v-5M31 12v-5M38 12v-5M6 7h34" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M4 14l-2 10h7l-1-10M42 14l2 10h-7l1-10" fill="currentColor" opacity=".55"/><path d="M10 22c3-2 5 0 8 0s5-2 8 0 5 0 8 0" style="stroke:var(--trace)" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
+      <span><span class="brand-name">Bridge health</span><span class="site" id="site-name">Site bridge01</span></span>
+    </a>
+    <a class="pill" id="conn-pill" href="#connect"><span class="dot"></span><span id="conn-text">Starting</span></a>
+    <button class="btn icon" id="theme-btn" type="button" aria-label="Switch to dark mode" title="Switch light or dark"></button>
+  </div>
+  <nav class="tabs" aria-label="Pages">
+    <a href="#overview" data-page="overview">Overview</a>
+    <a href="#vibration" data-page="vibration">Vibration</a>
+    <a href="#trends" data-page="trends">Trends</a>
+    <a href="#events" data-page="events">Events</a>
+    <a href="#system" data-page="system">System</a>
+    <a href="#connect" data-page="connect">Connect</a>
+  </nav>
+</header>
+
+<div class="demo-bar" id="demo-bar" hidden>
+  <div class="wrap">
+    <span class="msg"><b>Demo mode.</b> A simulated bridge with a week of history; a new capture arrives every 4 seconds.</span>
+    <button class="btn" type="button" id="dmg-btn">Simulate 6% stiffness loss</button>
+    <a class="btn" href="#connect">Connect your bridge</a>
+  </div>
+</div>
+
+<main class="wrap" id="main" tabindex="-1">
+
+<!-- OVERVIEW -->
+<section class="page" id="page-overview" data-page="overview" hidden>
+  <div class="hero mute" id="hero" aria-live="polite"></div>
+
+  <div class="panel bridge-panel">
+    <div class="head-row">
+      <div>
+        <h2>Latest capture, replayed</h2>
+        <p class="sub" id="bp-sub">Each capture is 30 seconds of vibration.</p>
+      </div>
+      <div class="leg-inline" aria-hidden="true">
+        <span><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--ok)" stroke-width="2.5"/></svg>reporting</span>
+        <span><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--warn)" stroke-width="2.5"/></svg>bad data</span>
+        <span><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--bad)" stroke-width="2.5" stroke-dasharray="3 2"/></svg>silent</span>
+        <span><i class="sw-ev"></i>vehicle crossing</span>
+      </div>
+    </div>
+    <div class="bridge-wrap">
+      <svg id="bridge" viewBox="0 76 1000 254" role="group" aria-labelledby="bridge-title">
+        <title id="bridge-title">Side view of the bridge. The deck moves with the measured vibration, greatly exaggerated.</title>
+        <defs>
+          <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" class="abut-bg" style="fill:var(--stone)"/><line x1="0" y1="0" x2="0" y2="7" class="hatch-line"/></pattern>
+          <clipPath id="water-clip"><rect x="0" y="262" width="1000" height="68"/></clipPath>
+        </defs>
+        <path class="hill-far" d="M0 150C90 112 170 128 260 104C350 80 430 120 520 108C610 96 690 70 790 92C880 110 940 96 1000 84V262H0Z"/>
+        <path class="hill-near" d="M0 210C110 176 210 196 320 184C440 170 540 204 660 186C770 170 880 190 1000 176V262H0Z"/>
+        <g class="dim" aria-hidden="true">
+          <path d="M80 128v-10M290 128v-6M500 128v-6M710 128v-6M920 128v-10M80 123H920"/>
+          <text x="290" y="114">¼</text><text x="500" y="114">½ span</text><text x="710" y="114">¾</text>
+        </g>
+        <rect class="water" x="0" y="262" width="1000" height="68"/>
+        <g clip-path="url(#water-clip)">
+          <use href="#deck" class="reflect" transform="translate(0 389.6) scale(1 -0.44)"/>
+          <g class="ripples" aria-hidden="true">
+            <path class="ripple" d="M140 278h40M330 286h56M560 276h34M760 290h50M1020 280h40M1220 286h56"/>
+            <path class="ripple r2" d="M60 302h30M260 312h46M470 300h30M690 316h40M900 304h36M1100 310h46"/>
+          </g>
+        </g>
+        <path class="bank" d="M0 196H70L58 272L40 330H0Z"/>
+        <path class="bank" d="M1000 196H930L942 272L960 330H1000Z"/>
+        <path class="abut" d="M56 200H100L108 282H46Z"/>
+        <path class="abut" d="M944 200H900L892 282H954Z"/>
+        <rect class="road" x="0" y="190" width="82" height="10"/>
+        <rect class="road" x="918" y="190" width="82" height="10"/>
+        <g id="cars"></g>
+        <path id="deck" class="deck" d="M80 190H920V200H80Z"/>
+        <path id="posts" class="posts" d=""/>
+        <path id="rail" class="rail" d=""/>
+        <path class="rail" d="M0 175H82M918 175H1000"/>
+        <path class="posts" d="M10 190v-15M45 190v-15M955 190v-15M990 190v-15"/>
+        <g id="node-layer"></g>
+        <text class="bridge-note" x="992" y="252" text-anchor="end">vertical movement exaggerated</text>
+      </svg>
+      <div class="bridge-empty" id="bridge-empty" hidden><div></div></div>
+    </div>
+    <div class="player">
+      <button class="btn icon" type="button" id="play" aria-label="Play"></button>
+      <input type="range" id="scrub" min="0" max="30" step="0.02" value="0" aria-label="Time within the capture, seconds">
+      <span class="clock" id="clock" aria-live="off">0.0 s of 30</span>
+      <button class="btn primary" type="button" id="newer" hidden>Show the newer capture</button>
+    </div>
+    <div class="traces" id="traces" aria-label="Vertical vibration at each node. Click to jump to a moment."></div>
+    <div class="node-info" id="node-info" aria-live="polite"></div>
+  </div>
+
+  <div class="panel strip" id="strip"></div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <h2>Anomaly score, last 24 hours</h2>
+      <p class="sub">1.0 is the alarm level. Click a point to open that capture.</p>
+      <div class="chart" id="ov-score"></div>
+    </div>
+    <div class="stack">
+      <div class="panel"><h2>Sensor nodes</h2><div id="ov-nodes" class="nodes-list"></div></div>
+      <div class="panel"><div class="head-row"><h2>Recent events</h2><a href="#events" class="sub">All events</a></div><div id="ov-events" style="margin-top:8px"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- VIBRATION -->
+<section class="page" id="page-vibration" data-page="vibration" hidden>
+  <div class="panel">
+    <div class="head-row">
+      <div class="picker">
+        <button class="btn icon" type="button" id="vib-prev" aria-label="Previous capture"><svg viewBox="0 0 20 20"><path d="M12.5 4 6.5 10l6 6" stroke="currentColor" stroke-width="2" fill="none"/></svg></button>
+        <select id="vib-select" aria-label="Choose a capture"></select>
+        <button class="btn icon" type="button" id="vib-next" aria-label="Next capture"><svg viewBox="0 0 20 20"><path d="m7.5 4 6 6-6 6" stroke="currentColor" stroke-width="2" fill="none"/></svg></button>
+        <label class="check"><input type="checkbox" id="vib-follow" checked> Follow latest</label>
+      </div>
+      <div class="row">
+        <span class="live-box" id="live-state" hidden><span class="livedot"></span><span class="countdown" id="live-count"></span></span>
+        <button class="btn" type="button" id="live-btn">Live view (10 min)</button>
+        <button class="btn" type="button" id="live-stop" hidden>Stop live view</button>
+      </div>
+    </div>
+    <div class="row" id="vib-token-row" hidden style="margin-top:10px">
+      <label for="vib-token">Command token</label>
+      <input type="password" id="vib-token" autocomplete="off" placeholder="Needed to send commands" data-token>
+      <span class="sub" style="margin:0">Kept only while this page is open.</span>
+    </div>
+    <div id="vib-summary"></div>
+  </div>
+  <div class="panel">
+    <h2>Vertical vibration at each node</h2>
+    <p class="sub">All nodes share one scale. Shaded bands are vehicle crossings, red dots are spikes, hollow squares are bad sensor reads. Hover to read every node at once.</p>
+    <div class="chart" id="vib-waves"></div>
+  </div>
+  <div class="panel">
+    <div class="head-row">
+      <div><h2>Spectrum</h2><p class="sub" id="spec-sub">Where the vibration energy sits. Peaks are the bridge's natural frequencies.</p></div>
+      <div class="seg" id="spec-mode" role="group" aria-label="Spectrum to show">
+        <button type="button" data-v="avg" aria-pressed="true">Average</button><button type="button" data-v="n1" aria-pressed="false">n1</button><button type="button" data-v="n2" aria-pressed="false">n2</button><button type="button" data-v="n3" aria-pressed="false">n3</button>
+      </div>
+    </div>
+    <div class="chart" id="vib-spec"></div>
+  </div>
+  <div class="panel">
+    <div class="head-row">
+      <div><h2>Full-resolution data</h2><p class="sub">200 samples a second on all three axes. The base station sends these on alarm or when asked.</p></div>
+      <div class="row">
+        <label class="btn" for="npz-file">Open raw file (.npz)</label>
+        <input type="file" id="npz-file" accept=".npz,application/zip,application/octet-stream" class="sr">
+        <button class="btn" type="button" id="req-raw">Ask for this capture's raw file</button>
+      </div>
+    </div>
+    <div class="row" id="raw-controls" hidden style="margin-top:6px">
+      <select id="raw-select" aria-label="Raw file to show"></select>
+      <div class="seg" id="raw-axis" role="group" aria-label="Axis">
+        <button type="button" data-v="x" aria-pressed="false">X</button><button type="button" data-v="y" aria-pressed="false">Y</button><button type="button" data-v="z" aria-pressed="true">Z (vertical)</button>
+      </div>
+    </div>
+    <div id="raw-view"><div class="empty-chart">No raw file open. Open a .npz file, or ask the base station for the capture shown above.</div></div>
+  </div>
+</section>
+
+<!-- TRENDS -->
+<section class="page" id="page-trends" data-page="trends" hidden>
+  <div class="panel head-row" style="align-items:center">
+    <div><h2>Trends</h2><p class="sub" id="tr-sub" style="margin:0">How the bridge's behaviour moves over time.</p></div>
+    <div class="seg" id="tr-range" role="group" aria-label="Time range">
+      <button type="button" data-v="6h" aria-pressed="false">6 h</button><button type="button" data-v="24h" aria-pressed="true">24 h</button><button type="button" data-v="7d" aria-pressed="false">7 days</button><button type="button" data-v="all" aria-pressed="false">All</button>
+    </div>
+  </div>
+  <div class="grid-2e">
+    <div class="panel"><h2>Anomaly score</h2><p class="sub">1.0 is the alarm level.</p><div class="chart" id="tr-score"></div></div>
+    <div class="panel"><h2>Natural frequencies, change from healthy</h2><p class="sub" id="tr-freq-sub">A drop of more than 3 % deserves a look.</p><div class="chart" id="tr-freq"></div></div>
+    <div class="panel"><h2>Mode shape match</h2><p class="sub">1 means the bridge bends exactly as when healthy.</p><div class="chart" id="tr-mac"></div></div>
+    <div class="panel"><h2>Deck temperature</h2><p class="sub">Warm steel and concrete are slightly softer, so frequencies dip on hot afternoons.</p><div class="chart" id="tr-temp"></div></div>
+  </div>
+  <div class="panel">
+    <div class="head-row"><h2>Captures</h2><span class="sub" id="tr-count"></span></div>
+    <div class="table-wrap" style="margin-top:8px;max-height:560px;overflow:auto"><table class="tbl" id="tr-table"></table></div>
+    <div class="row" style="margin-top:10px"><button class="btn" type="button" id="tr-more" hidden>Show more</button></div>
+  </div>
+</section>
+
+<!-- EVENTS -->
+<section class="page" id="page-events" data-page="events" hidden>
+  <div class="panel">
+    <div class="head-row" style="align-items:center">
+      <div><h2>Events</h2><p class="sub" style="margin:0">State changes and faults reported by the base station.</p></div>
+      <div class="seg" id="ev-filter" role="group" aria-label="Show">
+        <button type="button" data-v="all" aria-pressed="true">All</button><button type="button" data-v="state" aria-pressed="false">Alarms and warnings</button><button type="button" data-v="fault" aria-pressed="false">Faults</button>
+      </div>
+    </div>
+    <div id="ev-list" style="margin-top:16px"></div>
+  </div>
+</section>
+
+<!-- SYSTEM -->
+<section class="page" id="page-system" data-page="system" hidden>
+  <div class="panel"><div class="head-row"><div><h2>Base station</h2><p class="sub" id="sys-sub" style="margin:0">From the latest heartbeat (sent every 15 minutes).</p></div><span id="sys-online"></span></div><div id="sys-facts"></div></div>
+  <div class="grid-2e">
+    <div class="panel"><h2>Sensor nodes</h2><div id="sys-nodes"></div></div>
+    <div class="panel"><h2>Active faults</h2><div id="sys-faults"></div></div>
+  </div>
+  <div class="panel">
+    <h2>Remote commands</h2>
+    <p class="sub">Commands go to the base station through the broker. Each one needs the command token; it is kept in memory only and forgotten when you close the page.</p>
+    <div class="field" style="max-width:380px;margin-bottom:0">
+      <label for="sys-token">Command token</label>
+      <input type="password" id="sys-token" autocomplete="off" data-token>
+    </div>
+    <div class="cmd-grid">
+      <div class="cmd"><h3>Ping</h3><p>Check that the base station is listening.</p><div><button class="btn" type="button" data-cmd="ping">Send ping</button></div></div>
+      <div class="cmd"><h3>Status report</h3><p>Ask for an immediate heartbeat.</p><div><button class="btn" type="button" data-cmd="status">Request status</button></div></div>
+      <div class="cmd"><h3>Test SMS</h3><p>Send a test text to the alarm phone numbers.</p><div><button class="btn" type="button" data-cmd="sms_test">Send test SMS</button></div></div>
+      <div class="cmd"><h3>Mode</h3><p>Monitor scores each capture. Collect only records data for retraining.</p><div class="row"><select id="cmd-mode" aria-label="Mode"><option value="monitor">Monitor</option><option value="collect">Collect</option></select><button class="btn" type="button" data-cmd="set_mode">Set mode</button></div></div>
+      <div class="cmd"><h3>Raw file</h3><p>Ask for the full-resolution .npz of one capture.</p><div class="row"><input type="text" id="cmd-raw-id" placeholder="Capture ID" aria-label="Capture ID" style="width:170px"><button class="btn" type="button" data-cmd="send_raw">Request</button></div></div>
+      <div class="cmd"><h3>Live view</h3><p>Record back to back; a new window about every 30 s.</p><div class="row"><input type="number" id="cmd-live-min" min="1" max="30" value="10" aria-label="Minutes"><span>min</span><button class="btn" type="button" data-cmd="live_view">Start</button><button class="btn" type="button" data-cmd="live_stop">Stop</button></div></div>
+    </div>
+    <h3 style="margin-top:18px">Replies</h3>
+    <ul class="log" id="cmd-log"><li class="c-mute" style="display:block">Nothing sent yet.</li></ul>
+  </div>
+</section>
+
+<!-- CONNECT -->
+<section class="page" id="page-connect" data-page="connect" hidden>
+  <div class="notice" id="artifact-note" hidden><b>Live connections are blocked in this viewer.</b> This page is running inside the claude.ai viewer, which does not allow connections to outside servers. Download the file and open it directly in Chrome (double-click it, or drag it into a browser window); demo mode and history files work here.</div>
+  <div class="grid-2">
+    <div class="panel">
+      <h2>Broker connection</h2>
+      <p class="sub">The base station sends its results through your EMQX Cloud broker. Use the dashboard's own login, not the Pi's.</p>
+      <form id="conn-form" autocomplete="on" novalidate>
+        <div class="field">
+          <label for="f-addr">Broker address</label>
+          <input type="text" id="f-addr" aria-describedby="f-addr-help" placeholder="e.g. k1a2b3c4.ala.asia-southeast1.emqxsl.com" spellcheck="false" autocapitalize="off">
+          <span class="help" id="f-addr-help">Paste the address from the EMQX console. It becomes wss://address:8084/mqtt.</span>
+        </div>
+        <div class="form-grid">
+          <div class="field"><label for="f-user">Username</label><input type="text" id="f-user" autocomplete="username" spellcheck="false" autocapitalize="off"></div>
+          <div class="field"><label for="f-pass">Password</label><div class="pw-wrap"><input type="password" id="f-pass" autocomplete="current-password"><button class="btn" type="button" id="f-pass-show" aria-pressed="false">Show</button></div></div>
+        </div>
+        <div class="field" style="max-width:260px"><label for="f-site">Site ID</label><input type="text" id="f-site" value="bridge01" spellcheck="false" autocapitalize="off"><span class="help">Messages are read from shm/site ID/.</span></div>
+        <label class="check"><input type="checkbox" id="f-remember"> Remember on this device</label>
+        <div class="row" style="margin-top:14px">
+          <button class="btn primary" type="submit" id="f-connect">Connect</button>
+          <button class="btn" type="button" id="f-disconnect" disabled>Disconnect</button>
+          <button class="btn" type="button" id="f-forget">Forget saved details</button>
+        </div>
+      </form>
+      <div class="conn-msg" id="conn-msg" aria-live="polite"></div>
+    </div>
+    <div class="stack">
+      <div class="panel">
+        <h2>History file</h2>
+        <p class="sub">The broker only passes on new messages. For past days, open remote.sqlite from the laptop receiver.</p>
+        <div class="drop" id="drop">
+          <label class="btn primary" for="f-sqlite">Open remote.sqlite</label>
+          <input type="file" id="f-sqlite" accept=".sqlite,.sqlite3,.db,application/x-sqlite3,application/octet-stream" class="sr">
+          <p class="hint" style="margin-bottom:0">or drop the file here</p>
+        </div>
+        <div id="file-msg" aria-live="polite" style="margin-top:10px"></div>
+      </div>
+      <div class="panel">
+        <h2>Demo mode</h2>
+        <p class="sub">A simulated bridge with a week of history, for trying things out. It starts on its own when nothing is set up.</p>
+        <div class="row"><button class="btn" type="button" id="demo-toggle">Start demo</button><button class="btn" type="button" id="demo-dmg2">Simulate 6% stiffness loss</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+<footer class="wrap foot">Vibration is measured by three accelerometer nodes at a quarter, half and three quarters of the span. Scores come from an autoencoder trained on this bridge's normal behaviour.</footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+'use strict';
+/* ================= constants and helpers ================= */
+const MQTT_URL = 'https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js';
+const SQLJS_URL = 'https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-asm.js';
+const NODES = ['n1', 'n2', 'n3'];
+const NODE_U = { n1: 0.25, n2: 0.5, n3: 0.75 };
+const NODE_PLACE = { n1: 'quarter span', n2: 'mid-span', n3: 'three-quarter span' };
+const NODE_COLOR = { n1: 'var(--c1)', n2: 'var(--c2)', n3: 'var(--c3)' };
+const MODE_COLOR = ['var(--c1)', 'var(--c2)', 'var(--c3)'];
+const RM = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const nowS = () => Date.now() / 1000;
+const fin = v => typeof v === 'number' && isFinite(v);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function median(arr) {
+  const b = arr.filter(fin).sort((x, y) => x - y);
+  if (!b.length) return null;
+  const m = b.length >> 1;
+  return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2;
+}
+const MINUS = '−';
+function fmt(v, d = 2) { return fin(v) ? (v < 0 ? MINUS : '') + Math.abs(v).toFixed(d) : '–'; }
+function fmtPct(v, d = 1) {
+  if (!fin(v)) return '–';
+  const r = +v.toFixed(d);
+  if (r === 0) return (0).toFixed(d) + ' %';
+  return (r > 0 ? '+' : MINUS) + Math.abs(r).toFixed(d) + ' %';
+}
+function fmtDur(sec) {
+  if (!fin(sec)) return '–';
+  sec = Math.max(0, sec);
+  if (sec < 60) return Math.round(sec) + ' s';
+  const m = Math.floor(sec / 60);
+  if (m < 60) return m + ' min';
+  const h = Math.floor(m / 60);
+  if (h < 48) return h + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : '');
+  const d = Math.floor(h / 24);
+  return d + ' days' + (h % 24 ? ' ' + (h % 24) + ' h' : '');
+}
+function fmtAgo(ts, ref) {
+  if (!fin(ts)) return 'never';
+  const s = (ref ?? nowS()) - ts;
+  if (s < 45) return 'just now';
+  return fmtDur(s) + ' ago';
+}
+function fmtClock(ts, secs) { return new Date(ts * 1000).toLocaleTimeString([], secs ? { hour: '2-digit', minute: '2-digit', second: '2-digit' } : { hour: '2-digit', minute: '2-digit' }); }
+function fmtDay(ts) { return new Date(ts * 1000).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }); }
+function fmtDT(ts) {
+  if (!fin(ts)) return '–';
+  const d = new Date(ts * 1000), n = new Date();
+  if (d.toDateString() === n.toDateString()) return 'today ' + fmtClock(ts);
+  return fmtDay(ts) + ', ' + fmtClock(ts);
+}
+function dayKey(ts) { const d = new Date(ts * 1000); return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(); }
+function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+function safeJSON(t) { try { return typeof t === 'string' ? JSON.parse(t) : t; } catch (e) { return null; } }
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* storage blocked */ } }
+
+let toastTimer = 0;
+function toast(msg, ms = 3800) {
+  const t = $('#toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+const scriptP = {};
+function loadScript(url) {
+  if (scriptP[url]) return scriptP[url];
+  return (scriptP[url] = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = url; s.async = true; s.crossOrigin = 'anonymous';
+    s.onload = () => res();
+    s.onerror = () => { delete scriptP[url]; s.remove(); rej(new Error('Could not load ' + url.split('/npm/')[1].split('/')[0] + ' from cdn.jsdelivr.net. Check the internet connection' + (inArtifactViewer() ? ', or open the downloaded file directly instead of inside the claude.ai viewer.' : '.'))); };
+    document.head.appendChild(s);
+  }));
+}
+function inArtifactViewer() {
+  const h = location.hostname || '';
+  let anc = '';
+  try { anc = [...(location.ancestorOrigins || [])].join(' '); } catch (e) { }
+  return /claude\.ai|claudeusercontent|anthropic/i.test(h + ' ' + anc + ' ' + document.referrer);
+}
+
+/* readable "why" text: "freq_m1 lower than expected (-6.6 sd)" */
+function humanWhy(why) {
+  if (!why) return '';
+  return String(why).split(/;\s*/).filter(Boolean).map(part => {
+    let p = part.trim();
+    p = p.replace(/\bfreq_m(\d)\b/g, 'mode $1 frequency')
+      .replace(/\bmac_m(\d)\b/g, 'mode $1 shape match')
+      .replace(/\brms_n(\d)\b/g, 'vibration level at node $1')
+      .replace(/\bdamp_m(\d)\b/g, 'mode $1 damping')
+      .replace(/\b(n\d)_(\w+)/g, '$1 $2')
+      .replace(/\(\s*([+\-−]?)(\d+(?:\.\d+)?)\s*sd\s*\)/g, (m, s, n) => `(${n}× the usual spread)`);
+    return p.charAt(0).toUpperCase() + p.slice(1);
+  }).join('. ') + '.';
+}
+
+/* ================= data store ================= */
+const S = {
+  site: 'bridge01',
+  caps: [], capById: new Map(),
+  prevs: new Map(),
+  events: [], evKeys: new Set(),
+  hbs: [],
+  piState: null, online: null, onlineTs: null,
+  raws: new Map(),
+  liveUntil: null,
+  file: null,
+  ver: 0,
+  lastMsg: null,
+};
+function resetData() {
+  S.caps = []; S.capById = new Map(); S.prevs = new Map(); S.events = []; S.evKeys = new Set(); S.hbs = [];
+  S.piState = null; S.online = null; S.onlineTs = null; S.liveUntil = null; S.file = null; S.raws = new Map(); S.lastMsg = null;
+  S.ver++;
+  replayReset();
+  VIB.id = null; VIB.follow = true; RAW.cur = null;
+}
+function normCap(c) {
+  if (!c || c.id == null) return null;
+  c.id = String(c.id); c.ts = +c.ts;
+  if (!fin(c.ts)) return null;
+  if (c.ratio != null) c.ratio = +c.ratio;
+  if (!c.nodes || typeof c.nodes !== 'object') c.nodes = {};
+  return c;
+}
+function addCapture(c) {
+  c = normCap(c); if (!c) return;
+  const ex = S.capById.get(c.id);
+  if (ex) { const i = S.caps.indexOf(ex); if (i >= 0) S.caps[i] = c; }
+  else {
+    const a = S.caps;
+    if (!a.length || a[a.length - 1].ts <= c.ts) a.push(c);
+    else { let lo = 0, hi = a.length; while (lo < hi) { const m = (lo + hi) >> 1; if (a[m].ts <= c.ts) lo = m + 1; else hi = m; } a.splice(lo, 0, c); }
+  }
+  S.capById.set(c.id, c); S.ver++;
+}
+function addCapturesBulk(list) {
+  for (const c0 of list) { const c = normCap(c0); if (!c) continue; if (S.capById.has(c.id)) { const i = S.caps.indexOf(S.capById.get(c.id)); if (i >= 0) S.caps[i] = c; } else S.caps.push(c); S.capById.set(c.id, c); }
+  S.caps.sort((a, b) => a.ts - b.ts); S.ver++;
+}
+function addPreview(p, quiet) {
+  if (!p || p.id == null) return;
+  p.id = String(p.id); p.ts = +p.ts;
+  S.prevs.set(p.id, p); S.ver++;
+  if (!quiet) onNewPreview(p);
+}
+function addEvent(e) {
+  if (!e || !e.type) return;
+  e.ts = +e.ts || nowS();
+  const k = [e.ts, e.type, e.to || '', e.what || '', e.capture_id || ''].join('|');
+  if (S.evKeys.has(k)) return;
+  S.evKeys.add(k);
+  const a = S.events;
+  if (!a.length || a[a.length - 1].ts <= e.ts) a.push(e); else { a.push(e); a.sort((x, y) => x.ts - y.ts); }
+  S.ver++;
+}
+function addHeartbeat(h, ts) {
+  if (!h || typeof h !== 'object') return;
+  h._ts = fin(+ts) ? +ts : nowS();
+  const a = S.hbs;
+  if (!a.length || a[a.length - 1]._ts <= h._ts) a.push(h); else { a.push(h); a.sort((x, y) => x._ts - y._ts); }
+  if (a.length > 3000) a.splice(0, a.length - 3000);
+  if (h.live_until !== undefined && h === a[a.length - 1]) S.liveUntil = h.live_until;
+  S.ver++;
+}
+const lastCap = () => S.caps[S.caps.length - 1] || null;
+const lastHb = () => S.hbs[S.hbs.length - 1] || null;
+let _plv = -1, _pl = [];
+function prevList() { if (_plv !== S.ver) { _pl = [...S.prevs.values()].sort((a, b) => a.ts - b.ts); _plv = S.ver; } return _pl; }
+function isLive() { return DEMO.on || !!(MQ.client && MQ.connected); }
+function nowRef() { if (isLive()) return nowS(); const l = lastCap(); return l ? Math.max(l.ts, lastHb()?._ts || 0) : nowS(); }
+
+/* healthy baseline: median of the first 50 good NORMAL captures */
+let _blv = -1, _bl = null;
+function baseline() {
+  if (_blv === S.ver) return _bl;
+  _blv = S.ver;
+  const good = [];
+  for (const c of S.caps) {
+    if (c.q && c.state === 'NORMAL' && Array.isArray(c.freq) && c.freq.length >= 3) { good.push(c); if (good.length >= 50) break; }
+  }
+  if (good.length < 5) return (_bl = null);
+  return (_bl = {
+    n: good.length,
+    freq: [0, 1, 2].map(i => median(good.map(c => +c.freq[i]))),
+    mac: [0, 1, 2].map(i => median(good.map(c => Array.isArray(c.mac) ? +c.mac[i] : NaN))),
+  });
+}
+function freqPct(c, i, bl) {
+  bl = bl || baseline();
+  if (!bl || !c || !Array.isArray(c.freq) || !fin(+c.freq[i]) || !fin(bl.freq[i])) return null;
+  return (c.freq[i] / bl.freq[i] - 1) * 100;
+}
+
+/* node status: reporting / bad data / silent (> 10 min) */
+function nodeStatuses() {
+  const now = nowRef(), last = lastCap(), hb = lastHb();
+  const out = {};
+  for (const n of NODES) {
+    let heard = null;
+    for (let i = S.caps.length - 1, k = 0; i >= 0 && k < 600; i--, k++) {
+      const c = S.caps[i];
+      if (c.nodes && Object.prototype.hasOwnProperty.call(c.nodes, n)) { heard = c.ts; break; }
+    }
+    if (hb && Array.isArray(hb.nodes)) {
+      const e = hb.nodes.find(x => x && (x.node_id === n || x.node === n));
+      if (e && fin(+e.age_s)) { const t = hb._ts - e.age_s; if (heard == null || t > heard) heard = t; }
+    }
+    const bad = !!(last && last.nodes && Object.prototype.hasOwnProperty.call(last.nodes, n) && last.nodes[n] == null);
+    let st;
+    if (heard == null) st = { key: 'silent', cls: 'bad', text: 'no data yet' };
+    else if (now - heard > 600) st = { key: 'silent', cls: 'bad', text: 'silent for ' + fmtDur(now - heard) };
+    else if (bad) st = { key: 'bad', cls: 'warn', text: 'bad data' };
+    else st = { key: 'ok', cls: 'ok', text: 'reporting' };
+    st.heard = heard;
+    out[n] = st;
+  }
+  if (!last && !hb) for (const n of NODES) out[n] = { key: 'none', cls: '', text: 'no data yet', heard: null };
+  return out;
+}
+
+/* ================= preview decoding ================= */
+function b64ToBytes(b64) { const s = atob(b64); const u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+async function streamThrough(u8, ctor, fmt) {
+  if (typeof window[ctor] === 'undefined') throw new Error('This browser cannot unpack compressed data. Use a current version of Chrome, Edge, Firefox or Safari.');
+  const st = new Blob([u8]).stream().pipeThrough(new window[ctor](fmt));
+  return new Uint8Array(await new Response(st).arrayBuffer());
+}
+const inflate = (u8, fmt) => streamThrough(u8, 'DecompressionStream', fmt);
+const deflate = (u8, fmt) => streamThrough(u8, 'CompressionStream', fmt);
+async function decodeWave(nd) {
+  if (!nd || !nd.wave) return null;
+  const raw = await inflate(b64ToBytes(nd.wave), 'deflate');
+  const dv = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+  const n = raw.byteLength >> 1, out = new Float32Array(n), sc = +nd.scale || 1, delta = nd.coding === 'delta';
+  let acc = 0;
+  for (let i = 0; i < n; i++) { const v = dv.getInt16(i * 2, true); if (delta) { acc += v; out[i] = acc * sc; } else out[i] = v * sc; }
+  return out;
+}
+function waveStats(w) {
+  let pk = 0, pi = 0, ss = 0;
+  for (let i = 0; i < w.length; i++) { const a = Math.abs(w[i]); ss += w[i] * w[i]; if (a > pk) { pk = a; pi = i; } }
+  return { peak: pk, peakI: pi, rms: Math.sqrt(ss / Math.max(1, w.length)) };
+}
+function decodePreview(p) {
+  if (!p) return Promise.resolve(null);
+  if (p._dec) return Promise.resolve(p._dec);
+  if (p._decP) return p._decP;
+  return (p._decP = (async () => {
+    const fs = +p.fs || 50, dur = +p.dur || 30;
+    const nodes = {};
+    for (const nd of (Array.isArray(p.nodes) ? p.nodes : [])) {
+      if (!nd || !nd.node) continue;
+      let wave = null, err = null;
+      try { wave = await decodeWave(nd); } catch (e) { err = e.message; }
+      const st = wave ? waveStats(wave) : null;
+      nodes[nd.node] = {
+        ok: nd.ok !== false, n: nd.n, wave, err,
+        spec: Array.isArray(nd.spec) ? Float32Array.from(nd.spec, v => v / 10) : null,
+        rms: fin(+nd.rms) ? +nd.rms : st?.rms, peak: fin(+nd.peak) ? +nd.peak : st?.peak,
+        peakT: st ? st.peakI / fs : null, noise: nd.noise,
+        spikes: Array.isArray(nd.spikes) ? nd.spikes : [], glitches: Array.isArray(nd.glitches) ? nd.glitches : [],
+      };
+    }
+    p._dec = { fs, dur, df: +p.df || fs / 256, events: Array.isArray(p.events) ? p.events : [], nodes };
+    return p._dec;
+  })());
+}
+
+/* ================= signal processing ================= */
+function fft(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang), h = len >> 1;
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let k = 0; k < h; k++) {
+        const a = i + k, b = a + h;
+        const tr = re[b] * cr - im[b] * ci, ti = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+        const nc = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = nc;
+      }
+    }
+  }
+}
+/* Hann-window Welch PSD, 50 % overlap, segment about segSec long (power of two). Units: input^2 / Hz */
+function welch(x, fs, segSec = 5.12) {
+  let n = Math.pow(2, Math.round(Math.log2(Math.max(8, segSec * fs))));
+  while (n > x.length && n > 8) n >>= 1;
+  const w = new Float64Array(n); let U = 0;
+  for (let i = 0; i < n; i++) { w[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / n); U += w[i] * w[i]; }
+  const re = new Float64Array(n), im = new Float64Array(n), nb = n / 2 + 1, psd = new Float64Array(nb);
+  let segs = 0;
+  for (let s = 0; s + n <= x.length; s += n / 2) {
+    let mean = 0; for (let i = 0; i < n; i++) mean += x[s + i]; mean /= n;
+    for (let i = 0; i < n; i++) { re[i] = (x[s + i] - mean) * w[i]; im[i] = 0; }
+    fft(re, im);
+    for (let k = 0; k < nb; k++) psd[k] += re[k] * re[k] + im[k] * im[k];
+    segs++;
+  }
+  const sc = 1 / (fs * U * Math.max(1, segs));
+  for (let k = 0; k < nb; k++) psd[k] *= sc * (k === 0 || k === nb - 1 ? 1 : 2);
+  return { psd, df: fs / n, n };
+}
+
+/* ================= charts ================= */
+function niceTicks(min, max, n = 5) {
+  const span = max - min || 1, raw = span / n, mag = Math.pow(10, Math.floor(Math.log10(raw))), e = raw / mag;
+  const step = (e >= 7.5 ? 10 : e >= 3.5 ? 5 : e >= 1.5 ? 2 : 1) * mag;
+  const out = [];
+  for (let v = Math.ceil(min / step - 1e-9) * step; v <= max + step * 1e-9; v += step) out.push(+v.toFixed(10));
+  return { ticks: out, step };
+}
+function timeTicks(min, max, n = 6) {
+  const steps = [60, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200, 86400, 172800, 604800];
+  const span = max - min, step = steps.find(s => span / s <= n) || 604800;
+  const off = new Date(min * 1000).getTimezoneOffset() * 60;
+  const out = [];
+  for (let t = Math.ceil((min - off) / step) * step + off; t <= max; t += step) out.push(t);
+  return { ticks: out, step, fmt: t => step >= 86400 ? fmtDay(t).replace(/,.*/, '') : (new Date(t * 1000).getHours() === 0 && new Date(t * 1000).getMinutes() === 0 ? new Date(t * 1000).toLocaleDateString([], { weekday: 'short' }) : fmtClock(t)) };
+}
+function nearestPt(pts, xv) {
+  if (!pts.length) return null;
+  let lo = 0, hi = pts.length - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (pts[m][0] < xv) lo = m; else hi = m; }
+  let best = null, bd = Infinity;
+  for (let i = Math.max(0, lo - 3); i <= Math.min(pts.length - 1, hi + 3); i++) {
+    const p = pts[i]; if (!p || !fin(p[1])) continue;
+    const d = Math.abs(p[0] - xv); if (d < bd) { bd = d; best = p; }
+  }
+  if (!best) { for (let i = lo; i >= 0; i--) if (fin(pts[i][1])) { best = pts[i]; break; } }
+  return best;
+}
+/* generic line chart. o: {series:[{name,pts:[[x,y,meta]],color,dash,dots,dotClass,width,noTip}], xTime, xMin,xMax,yMin,yMax, refs:[{y,label,cls}], vlines:[{x,label,cls}], bands:[[x0,x1]], height, gap, onClick, tipTitle, fmtY, fmtTip, empty, label} */
+function lineChart(el, o) {
+  const W = Math.max(260, Math.floor(el.clientWidth || 600)), H = o.height || (W < 500 ? 190 : 220);
+  const m = { l: o.ml ?? 46, r: o.mr ?? 14, t: o.mt ?? 14, b: 26 };
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const series = (o.series || []).filter(s => s && s.pts);
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, any = false;
+  for (const s of series) for (const p of s.pts) {
+    if (!p || !fin(p[1])) continue; any = true;
+    if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1];
+  }
+  if (!any) { el.innerHTML = `<div class="empty-chart">${o.empty || 'Nothing to show yet.'}</div>`; return; }
+  if (o.xMin != null) x0 = o.xMin; if (o.xMax != null) x1 = o.xMax;
+  for (const r of o.refs || []) if (fin(r.y) && !r.noFit) { y0 = Math.min(y0, r.y); y1 = Math.max(y1, r.y); }
+  if (x1 === x0) { x0 -= 1; x1 += 1; }
+  if (y1 === y0) { y0 -= 1; y1 += 1; }
+  const pad = (y1 - y0) * 0.08;
+  y0 = o.yMin != null ? o.yMin : y0 - pad; y1 = o.yMax != null ? Math.max(o.yMax, o.yMaxSoft ? y1 + pad : o.yMax) : y1 + pad;
+  const X = v => m.l + (v - x0) / (x1 - x0) * pw, Y = v => m.t + (1 - (v - y0) / (y1 - y0)) * ph;
+  const fy = o.fmtY || (v => fmt(v, Math.abs(y1 - y0) < 0.5 ? 2 : Math.abs(y1 - y0) < 5 ? 1 : 0));
+  let svg = `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(o.label || 'chart')}">`;
+  svg += `<rect class="paper" x="${m.l}" y="${m.t}" width="${pw}" height="${ph}"/>`;
+  for (const v of niceTicks(y0, y1, ph < 150 ? 3 : 5).ticks) {
+    if (v < y0 || v > y1) continue;
+    svg += `<line class="grid" x1="${m.l}" x2="${m.l + pw}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/><text x="${m.l - 6}" y="${(Y(v) + 4).toFixed(1)}" text-anchor="end">${fy(v)}</text>`;
+  }
+  const xt = o.xTime ? timeTicks(x0, x1, Math.max(3, Math.floor(pw / 95))) : niceTicks(x0, x1, Math.max(3, Math.floor(pw / 70)));
+  for (const v of xt.ticks) {
+    if (v < x0 || v > x1) continue;
+    svg += `<line class="grid" x1="${X(v).toFixed(1)}" x2="${X(v).toFixed(1)}" y1="${m.t}" y2="${m.t + ph}"/><text x="${X(v).toFixed(1)}" y="${H - 7}" text-anchor="middle">${o.xTime ? xt.fmt(v) : (o.fmtX ? o.fmtX(v) : v)}</text>`;
+  }
+  for (const b of o.bands || []) {
+    const a = clamp(X(b[0]), m.l, m.l + pw), z = clamp(X(b[1]), m.l, m.l + pw);
+    if (z > a) svg += `<rect class="band" x="${a.toFixed(1)}" y="${m.t}" width="${(z - a).toFixed(1)}" height="${ph}"/>`;
+  }
+  for (const r of o.refs || []) {
+    if (!fin(r.y) || r.y < y0 || r.y > y1) continue;
+    svg += `<line class="ref ${r.cls || ''}" x1="${m.l}" x2="${m.l + pw}" y1="${Y(r.y).toFixed(1)}" y2="${Y(r.y).toFixed(1)}"/>`;
+    if (r.label) svg += `<text class="ref-lab ${r.cls || ''}" x="${m.l + pw - 4}" y="${(Y(r.y) - 5).toFixed(1)}" text-anchor="end">${esc(r.label)}</text>`;
+  }
+  let lab = 0;
+  for (const v of o.vlines || []) {
+    if (!fin(v.x) || v.x < x0 || v.x > x1) continue;
+    const xx = X(v.x).toFixed(1);
+    svg += `<line class="vline ${v.cls || ''}" x1="${xx}" x2="${xx}" y1="${m.t}" y2="${m.t + ph}"/>`;
+    if (v.label) { const right = X(v.x) > m.l + pw - 110; svg += `<text class="vlab ${v.cls || ''}" x="${(X(v.x) + (right ? -5 : 5)).toFixed(1)}" y="${m.t + 14 + (lab++ % 3) * 15}" text-anchor="${right ? 'end' : 'start'}">${esc(v.label)}</text>`; }
+  }
+  for (const s of series) {
+    let d = '', pen = false, lx = null;
+    for (const p of s.pts) {
+      if (!p || !fin(p[1])) { pen = false; continue; }
+      if (o.gap && lx != null && p[0] - lx > o.gap) pen = false;
+      d += (pen ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(clamp(p[1], y0, y1)).toFixed(1);
+      pen = true; lx = p[0];
+    }
+    svg += `<path class="ser" d="${d}" style="stroke:${s.color || 'var(--trace)'};${s.width ? 'stroke-width:' + s.width + 'px;' : ''}"${s.dash ? ' stroke-dasharray="' + s.dash + '"' : ''}/>`;
+    if (s.dotClass) for (const p of s.pts) {
+      if (!p || !fin(p[1])) continue;
+      const c = s.dotClass(p); if (!c) continue;
+      svg += `<circle class="dot ${c}" cx="${X(p[0]).toFixed(1)}" cy="${Y(clamp(p[1], y0, y1)).toFixed(1)}" r="3.6"/>`;
+    }
+  }
+  svg += `<rect class="frame" x="${m.l}" y="${m.t}" width="${pw}" height="${ph}"/>`;
+  svg += `<line class="xhair" y1="${m.t}" y2="${m.t + ph}" visibility="hidden"/><g class="hdots"></g>`;
+  svg += `<rect class="hit${o.onClick ? ' clickable' : ''}" x="${m.l}" y="${m.t}" width="${pw}" height="${ph}"/></svg>`;
+  const legSeries = series.filter(s => s.name && !s.noLegend);
+  const legend = legSeries.length >= 2 ? `<div class="legend">${legSeries.map(s => `<span><i class="${s.dash ? 'dash' : ''}" style="border-color:${s.color}"></i>${esc(s.name)}</span>`).join('')}</div>` : '';
+  el.innerHTML = legend + `<div class="chart-box">${svg}<div class="tip" hidden></div></div>`;
+  const box = el.querySelector('.chart-box'), svgEl = box.querySelector('svg'), tip = box.querySelector('.tip'), xh = svgEl.querySelector('.xhair'), hd = svgEl.querySelector('.hdots'), hit = svgEl.querySelector('.hit');
+  const toX = e => { const r = svgEl.getBoundingClientRect(); return x0 + ((e.clientX - r.left) * (W / r.width) - m.l) / pw * (x1 - x0); };
+  const hide = () => { tip.hidden = true; xh.setAttribute('visibility', 'hidden'); hd.innerHTML = ''; };
+  hit.addEventListener('pointermove', e => {
+    const xv = toX(e); let snap = null; const rows = [];
+    for (const s of series) { if (s.noTip) continue; const p = nearestPt(s.pts, xv); if (!p) continue; if (snap == null) snap = p[0]; rows.push({ s, p }); }
+    if (snap == null) return hide();
+    const xx = X(snap);
+    xh.setAttribute('x1', xx); xh.setAttribute('x2', xx); xh.setAttribute('visibility', 'visible');
+    hd.innerHTML = rows.map(r => `<circle class="hdot" cx="${X(r.p[0]).toFixed(1)}" cy="${Y(clamp(r.p[1], y0, y1)).toFixed(1)}" r="4.5" style="fill:${r.s.color || 'var(--trace)'}"/>`).join('');
+    tip.innerHTML = `<div class="tt">${o.tipTitle ? o.tipTitle(snap, rows) : (o.xTime ? fmtDT(snap) : fmt(snap, 2))}</div>` +
+      rows.map(r => `<div><i class="sw" style="background:${r.s.color || 'var(--trace)'}"></i>${esc(r.s.name || '')} <b>${o.fmtTip ? o.fmtTip(r.p[1], r.s, r.p) : fmt(r.p[1], 2)}</b></div>`).join('') +
+      (o.tipExtra ? o.tipExtra(snap, rows) : '');
+    tip.hidden = false;
+    const br = box.getBoundingClientRect(), sx = xx * (br.width / W);
+    const tw = tip.offsetWidth;
+    tip.style.left = (sx + 14 + tw > br.width ? Math.max(0, sx - 14 - tw) : sx + 14) + 'px';
+  });
+  hit.addEventListener('pointerleave', hide);
+  if (o.onClick) hit.addEventListener('click', e => { const s = series[o.clickSeries || 0]; const p = s && nearestPt(s.pts, toX(e)); if (p) o.onClick(p, s); });
+}
+
+/* stacked waveforms on a shared scale. o: {fs, chans:[{name,label,sub,data,color,spikes,glitches}], events, unit, onClick} */
+function robustAmp(chans) {
+  let amp = 0;
+  for (const c of chans) {
+    if (!c.data || !c.data.length) continue;
+    const a = Float32Array.from(c.data, Math.abs).sort();
+    amp = Math.max(amp, a[Math.floor(a.length * 0.998)] || 0, (a[a.length - 1] || 0) * 0.55);
+  }
+  return Math.max(0.5, amp * 1.12);
+}
+function waveStack(el, o) {
+  const W = Math.max(260, Math.floor(el.clientWidth || 600));
+  const chans = o.chans, rowH = o.rowH || (W < 500 ? 70 : 92), gap = 8;
+  const m = { l: W < 500 ? 46 : 64, r: 10, t: 6, b: 26 }, pw = W - m.l - m.r;
+  const H = m.t + chans.length * rowH + (chans.length - 1) * gap + m.b;
+  const fs = o.fs, N = Math.max(1, ...chans.map(c => c.data ? c.data.length : 0)), dur = o.dur || N / fs;
+  const amp = o.amp || robustAmp(chans);
+  const X = t => m.l + t / dur * pw;
+  let svg = `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(o.label || 'Waveforms')}">`;
+  chans.forEach((c, i) => {
+    const top = m.t + i * (rowH + gap), mid = top + rowH / 2, half = rowH / 2 - 3;
+    const Yv = v => mid - clamp(v / amp, -1, 1) * half;
+    svg += `<rect class="paper" x="${m.l}" y="${top}" width="${pw}" height="${rowH}"/>`;
+    for (const ev of o.events || []) { const a = X(clamp(ev[0], 0, dur)), z = X(clamp(ev[1], 0, dur)); if (z > a) svg += `<rect class="band" x="${a.toFixed(1)}" y="${top}" width="${(z - a).toFixed(1)}" height="${rowH}"/>`; }
+    svg += `<line class="zero" x1="${m.l}" x2="${m.l + pw}" y1="${mid}" y2="${mid}"/>`;
+    svg += `<text class="rowlab" x="${m.l - 8}" y="${mid - 2}" text-anchor="end">${esc(c.label || c.name)}</text>`;
+    if (c.sub && W >= 500) svg += `<text class="rowsub" x="${m.l - 8}" y="${mid + 13}" text-anchor="end">${esc(c.sub)}</text>`;
+    const d = c.data;
+    if (d && d.length) {
+      const n = d.length; let path = '';
+      if (n <= pw * 2) { for (let k = 0; k < n; k++) path += (k ? 'L' : 'M') + X(k / fs).toFixed(1) + ' ' + Yv(d[k]).toFixed(1); }
+      else {
+        for (let col = 0; col < pw; col++) {
+          const i0 = Math.floor(col * n / pw), i1 = Math.max(i0 + 1, Math.floor((col + 1) * n / pw));
+          let lo = Infinity, hi = -Infinity;
+          for (let k = i0; k < i1 && k < n; k++) { if (d[k] < lo) lo = d[k]; if (d[k] > hi) hi = d[k]; }
+          const xx = (m.l + col + 0.5).toFixed(1);
+          path += (col ? 'L' : 'M') + xx + ' ' + Yv(hi).toFixed(1) + 'L' + xx + ' ' + Yv(lo).toFixed(1);
+        }
+      }
+      svg += `<path class="wave" d="${path}" style="stroke:${c.color || 'var(--trace)'}"/>`;
+    } else svg += `<text x="${m.l + pw / 2}" y="${mid + 4}" text-anchor="middle" class="rowsub">${esc(c.empty || 'no data from this node in this capture')}</text>`;
+    for (const s of c.spikes || []) if (fin(+s[0])) svg += `<circle class="spike" cx="${X(+s[0]).toFixed(1)}" cy="${Yv(+s[1] || 0).toFixed(1)}" r="4.2"><title>Spike ${fmt(+s[1], 1)} mg at ${fmt(+s[0], 2)} s</title></circle>`;
+    for (const g of c.glitches || []) if (fin(+g[0])) svg += `<rect class="glitch" x="${(X(+g[0]) - 4).toFixed(1)}" y="${(Yv(+g[1] || 0) - 4).toFixed(1)}" width="8" height="8"><title>Bad read ${fmt(+g[1], 1)} mg at ${fmt(+g[0], 2)} s</title></rect>`;
+    svg += `<rect class="frame" x="${m.l}" y="${top}" width="${pw}" height="${rowH}"/>`;
+  });
+  const bottom = H - m.b;
+  for (const v of niceTicks(0, dur, Math.max(3, Math.floor(pw / 80))).ticks) if (v <= dur) svg += `<text x="${X(v).toFixed(1)}" y="${H - 7}" text-anchor="middle">${v}${v === 0 ? ' s' : ''}</text>`;
+  svg += `<line class="xhair" y1="${m.t}" y2="${bottom}" visibility="hidden"/><rect class="hit${o.onClick ? ' clickable' : ''}" x="${m.l}" y="${m.t}" width="${pw}" height="${bottom - m.t}"/></svg>`;
+  el.innerHTML = `<div class="legend"><span>Scale: each row spans ${MINUS}${fmt(amp, amp < 10 ? 1 : 0)} to +${fmt(amp, amp < 10 ? 1 : 0)} ${esc(o.unit || 'mg')}</span></div><div class="chart-box">${svg}<div class="tip" hidden></div></div>`;
+  const box = el.querySelector('.chart-box'), svgEl = box.querySelector('svg'), tip = box.querySelector('.tip'), xh = svgEl.querySelector('.xhair'), hit = svgEl.querySelector('.hit');
+  const toT = e => { const r = svgEl.getBoundingClientRect(); return clamp(((e.clientX - r.left) * (W / r.width) - m.l) / pw * dur, 0, dur); };
+  hit.addEventListener('pointermove', e => {
+    const t = toT(e), xx = X(t);
+    xh.setAttribute('x1', xx); xh.setAttribute('x2', xx); xh.setAttribute('visibility', 'visible');
+    const inEv = (o.events || []).some(ev => t >= ev[0] && t <= ev[1]);
+    tip.innerHTML = `<div class="tt">${fmt(t, 2)} s</div>` + chans.map(c => {
+      const v = c.data && c.data.length ? c.data[clamp(Math.round(t * fs), 0, c.data.length - 1)] : null;
+      return `<div><i class="sw" style="background:${c.color || 'var(--trace)'}"></i>${esc(c.label || c.name)} <b>${v == null ? 'no data' : fmt(v, 2) + ' ' + (o.unit || 'mg')}</b></div>`;
+    }).join('') + (inEv ? '<div class="tx">Vehicle on the bridge</div>' : '');
+    tip.hidden = false;
+    const br = box.getBoundingClientRect(), sx = xx * (br.width / W), tw = tip.offsetWidth;
+    tip.style.left = (sx + 14 + tw > br.width ? Math.max(0, sx - 14 - tw) : sx + 14) + 'px';
+  });
+  hit.addEventListener('pointerleave', () => { tip.hidden = true; xh.setAttribute('visibility', 'hidden'); });
+  if (o.onClick) hit.addEventListener('click', e => o.onClick(toT(e)));
+}
+
+/* small icon set */
+const ICON = {
+  ok: '<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h28"/><path d="M8 20v-5M14 20v-5M22 20v-5M28 20v-5M6 15h24" stroke-width="2"/><path d="M12 28.5l4 3.5 8-8"/></svg>',
+  warn: '<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22c3 0 3-8 6-8s3 14 6 14 3-20 6-20 3 14 6 14 3-6 6-6"/><circle cx="30" cy="7" r="1.5" fill="currentColor"/></svg>',
+  bad: '<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"><path d="M18 4 33 31H3Z"/><path d="M18 14v8"/><circle cx="18" cy="26.5" r="1.2" fill="currentColor"/></svg>',
+  sensor: '<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="11" y="13" width="14" height="14" rx="2"/><path d="M15 9a6 6 0 0 1 6 0M12 5.5a11 11 0 0 1 12 0"/><path d="M18 18v4"/><circle cx="18" cy="24.6" r=".8" fill="currentColor"/></svg>',
+  offline: '<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 18v14M12 32h12"/><path d="M11 11a10 10 0 0 1 14 0M6.5 6.5a16 16 0 0 1 23 0"/><path d="M5 30 31 4" /></svg>',
+  learn: '<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 29h28"/><path d="M7 25l6-7 6 4 9-11"/><path d="M23 11h5v5"/></svg>',
+  wait: '<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="18" cy="18" r="13"/><path d="M18 10v8l5 4"/></svg>',
+  plug: '<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v8M24 4v8M8 12h20v6a10 10 0 0 1-20 0z"/><path d="M18 28v5"/></svg>',
+  play: '<svg viewBox="0 0 20 20"><path d="M6 4v12l10-6z" fill="currentColor"/></svg>',
+  pause: '<svg viewBox="0 0 20 20"><path d="M5 4h3.5v12H5zM11.5 4H15v12h-3.5z" fill="currentColor"/></svg>',
+  moon: '<svg viewBox="0 0 20 20"><path d="M15.5 12.5A6.5 6.5 0 0 1 7.5 4.5a6.5 6.5 0 1 0 8 8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+  sun: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="3.6"/><path d="M10 1.8v2M10 16.2v2M1.8 10h2M16.2 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4"/></svg>',
+};
+
+/* ================= overview: bridge replay ================= */
+const BX0 = 80, BSPAN = 840, BY = 190, DECK_T = 10, EXAG = 24;
+function inv3(m) {
+  const [a, b, c] = m[0], [d, e, f] = m[1], [g, h, i] = m[2];
+  const A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g, det = a * A + b * B + c * C;
+  return [[A / det, -(b * i - c * h) / det, (b * f - c * e) / det], [B / det, (a * i - c * g) / det, -(a * f - c * d) / det], [C / det, -(a * h - b * g) / det, (a * e - b * d) / det]];
+}
+/* deck shape = sum of the first three sine modes that passes exactly through the 3 nodes, zero at the abutments */
+const MINV = inv3([0.25, 0.5, 0.75].map(u => [1, 2, 3].map(k => Math.sin(k * Math.PI * u))));
+const R = { id: null, p: null, dec: null, t: 0, dur: 30, playing: false, pending: null, raf: 0, last: 0, amp: 1, sel: null, dragging: false, seq: 0, nst: {} };
+
+function replayReset() {
+  R.id = null; R.p = null; R.dec = null; R.t = 0; R.pending = null; R.playing = false; R.seq++;
+  stopLoop();
+  const tr = $('#traces'); if (tr) tr.innerHTML = '';
+}
+function setupBridge() {
+  $('#node-layer').innerHTML = NODES.map(n => `<g class="node none" data-node="${n}" tabindex="0" role="button" aria-pressed="false" aria-label="Node ${n.slice(1)} at ${NODE_PLACE[n]}. Show its readings."><line class="leader" x1="0" y1="11" x2="0" y2="33"/><circle class="hit" r="26"/><circle class="halo" r="15"/><circle class="ring" r="9"/><circle class="core" r="3.5"/><text class="lbl" y="52">${n}</text></g>`).join('');
+  $$('#node-layer .node').forEach(g => {
+    g.addEventListener('click', () => selectNode(g.dataset.node));
+    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectNode(g.dataset.node); } });
+  });
+  $('#cars').innerHTML = [0, 1, 2].map(i => `<g class="car" visibility="hidden"><g class="car-in"><path class="body" style="fill:${i === 1 ? 'var(--c2)' : 'var(--trace)'}" d="M-17 -4V-10L-9 -11.5L-5 -17H7L12 -11.5L17 -10V-4Z"/><path class="win" d="M-3.6 -15.4H6L9.6 -11.6H-6.6Z"/><circle class="wheel" cx="-10" cy="-3.4" r="3.4"/><circle class="wheel" cx="10" cy="-3.4" r="3.4"/></g></g>`).join('');
+  $('#play').addEventListener('click', () => {
+    if (!R.dec) return;
+    R.playing = !R.playing;
+    if (R.playing && R.t >= R.dur - 0.05) R.t = 0;
+    setPlayIcon(); updateNewerBtn();
+    if (R.playing) startLoop();
+  });
+  const sc = $('#scrub');
+  sc.addEventListener('pointerdown', () => { R.dragging = true; });
+  const endDrag = () => { R.dragging = false; R.last = performance.now(); };
+  sc.addEventListener('pointerup', endDrag); sc.addEventListener('change', endDrag); sc.addEventListener('blur', endDrag);
+  sc.addEventListener('input', () => { R.t = +sc.value; frame(R.t); });
+  $('#newer').addEventListener('click', () => { if (R.pending) replayLoad(R.pending, !RM.matches); });
+  setPlayIcon();
+}
+function setPlayIcon() {
+  const b = $('#play');
+  b.innerHTML = R.playing ? ICON.pause : ICON.play;
+  b.setAttribute('aria-label', R.playing ? 'Pause' : 'Play');
+}
+function updateNewerBtn() { $('#newer').hidden = !(R.pending && R.pending !== R.id && !R.playing); }
+function selectNode(n) {
+  R.sel = R.sel === n ? null : n;
+  $$('#node-layer .node').forEach(g => { const on = g.dataset.node === R.sel; g.classList.toggle('sel', on); g.setAttribute('aria-pressed', on); });
+  $$('#traces .trace').forEach(t => t.classList.toggle('sel', t.dataset.node === R.sel));
+  renderNodeInfo();
+}
+function strongestMoment(dec) {
+  const ws = NODES.map(n => dec.nodes[n]?.wave).filter(Boolean);
+  if (!ws.length) return 0;
+  const n = Math.min(...ws.map(w => w.length)), win = Math.max(1, Math.round(dec.fs * 0.5));
+  let best = 0, bi = 0, acc = 0;
+  const e = new Float64Array(n);
+  for (let i = 0; i < n; i++) { let s = 0; for (const w of ws) s += w[i] * w[i]; e[i] = s; }
+  for (let i = 0; i < n; i++) { acc += e[i]; if (i >= win) acc -= e[i - win]; if (acc > best) { best = acc; bi = i - win / 2; } }
+  return clamp(bi / dec.fs, 0, dec.dur);
+}
+async function replayLoad(id, autoplay) {
+  const p = S.prevs.get(id); if (!p) return;
+  const seq = ++R.seq;
+  const dec = await decodePreview(p);
+  if (seq !== R.seq || !dec) return;
+  stopLoop();
+  R.id = id; R.p = p; R.dec = dec; R.dur = dec.dur || 30;
+  if (R.pending === id) R.pending = null;
+  R.amp = robustAmp(NODES.map(n => ({ data: dec.nodes[n]?.wave })).filter(c => c.data));
+  $('#scrub').max = R.dur;
+  buildTraces();
+  if (RM.matches) { R.t = strongestMoment(dec); R.playing = false; }
+  else { R.t = 0; R.playing = !!autoplay; }
+  setPlayIcon(); updateNewerBtn(); renderBridgeSub(); renderNodeInfo(); updateBridgeEmpty();
+  frame(R.t);
+  if (R.playing) startLoop();
+}
+function onNewPreview(p) {
+  const pl = prevList(), newest = pl[pl.length - 1];
+  if (newest && newest.id !== p.id) return;
+  if (!R.id) { replayLoad(p.id, !RM.matches); return; }
+  if (R.id === p.id) return;
+  R.pending = p.id; updateNewerBtn();
+}
+function startLoop() { if (R.raf) return; R.last = performance.now(); R.raf = requestAnimationFrame(step); }
+function stopLoop() { if (R.raf) cancelAnimationFrame(R.raf); R.raf = 0; }
+function step(ts) {
+  R.raf = 0;
+  if (currentPage() !== 'overview' || document.hidden) return;
+  const dt = Math.min(0.1, Math.max(0, (ts - R.last) / 1000)); R.last = ts;
+  if (R.playing && !R.dragging) {
+    R.t += dt;
+    if (R.t >= R.dur) {
+      if (R.pending) { const id = R.pending; R.t = R.dur; frame(R.t); replayLoad(id, true); return; }
+      R.t = 0;
+    }
+  }
+  frame(R.t);
+  if (R.playing) R.raf = requestAnimationFrame(step);
+}
+function frame(t) {
+  const d = R.dec, y = [0, 0, 0], EXAG = window.innerWidth < 640 ? 42 : 24;
+  if (d) {
+    const fi = t * d.fs;
+    NODES.forEach((n, j) => {
+      const w = d.nodes[n]?.wave; if (!w || !w.length) return;
+      const i0 = clamp(Math.floor(fi), 0, w.length - 1), i1 = Math.min(w.length - 1, i0 + 1), fr = clamp(fi - i0, 0, 1);
+      y[j] = clamp((w[i0] * (1 - fr) + w[i1] * fr) / R.amp * EXAG, -EXAG * 1.5, EXAG * 1.5);
+    });
+  }
+  const a = [0, 1, 2].map(r => MINV[r][0] * y[0] + MINV[r][1] * y[1] + MINV[r][2] * y[2]);
+  const disp = u => (u <= 0 || u >= 1) ? 0 : a[0] * Math.sin(Math.PI * u) + a[1] * Math.sin(2 * Math.PI * u) + a[2] * Math.sin(3 * Math.PI * u);
+  const K = 48;
+  let top = '', bot = '', posts = '', rail = '';
+  for (let i = 0; i <= K; i++) {
+    const u = i / K, x = (BX0 + u * BSPAN).toFixed(1), yy = BY - disp(u);
+    top += (i ? 'L' : 'M') + x + ' ' + yy.toFixed(1);
+    rail += (i ? 'L' : 'M') + x + ' ' + (yy - 15).toFixed(1);
+    if (i % 2 === 0) posts += 'M' + x + ' ' + yy.toFixed(1) + 'v-15';
+  }
+  for (let i = K; i >= 0; i--) { const u = i / K; bot += 'L' + (BX0 + u * BSPAN).toFixed(1) + ' ' + (BY - disp(u) + DECK_T).toFixed(1); }
+  $('#deck').setAttribute('d', top + bot + 'Z');
+  $('#rail').setAttribute('d', rail);
+  $('#posts').setAttribute('d', posts);
+  $$('#node-layer .node').forEach(g => {
+    const u = NODE_U[g.dataset.node];
+    g.setAttribute('transform', `translate(${(BX0 + u * BSPAN).toFixed(1)} ${(BY - disp(u) + DECK_T / 2).toFixed(1)})`);
+  });
+  // vehicles
+  const cars = $$('#cars .car');
+  const evs = d ? d.events.map((e, i) => ({ s: +e[0], e: +e[1], i })).filter(e => t >= e.s && t <= e.e) : [];
+  cars.forEach((g, k) => {
+    const ev = evs[k];
+    if (!ev || !(ev.e > ev.s)) { g.setAttribute('visibility', 'hidden'); return; }
+    const u = (t - ev.s) / (ev.e - ev.s), dir = ev.i % 2 ? -1 : 1;
+    const pos = -0.07 + 1.14 * (dir > 0 ? u : 1 - u);
+    const x = BX0 + pos * BSPAN, yy = BY - disp(pos);
+    const slope = -(disp(pos + 0.01) - disp(pos - 0.01)) / (0.02 * BSPAN);
+    g.setAttribute('visibility', 'visible');
+    g.setAttribute('transform', `translate(${x.toFixed(1)} ${yy.toFixed(1)}) rotate(${(Math.atan(slope) * 180 / Math.PI).toFixed(2)})`);
+    g.firstElementChild.setAttribute('transform', `scale(${dir} 1)`);
+  });
+  const pct = (R.dur ? t / R.dur * 100 : 0).toFixed(3) + '%';
+  $$('#traces .ph').forEach(ph => { ph.style.left = pct; });
+  $('#clock').textContent = `${t.toFixed(1)} s of ${Math.round(R.dur)}`;
+  const sc = $('#scrub'); if (!R.dragging) sc.value = t;
+  sc.setAttribute('aria-valuetext', `${t.toFixed(1)} seconds of ${Math.round(R.dur)}`);
+}
+function tracePath(w, amp) {
+  const n = w.length, cols = Math.min(500, n);
+  let d = '';
+  for (let c = 0; c < cols; c++) {
+    const i0 = Math.floor(c * n / cols), i1 = Math.max(i0 + 1, Math.floor((c + 1) * n / cols));
+    let lo = Infinity, hi = -Infinity;
+    for (let k = i0; k < i1; k++) { if (w[k] < lo) lo = w[k]; if (w[k] > hi) hi = w[k]; }
+    const x = ((c + 0.5) / cols * 1000).toFixed(1);
+    d += (c ? 'L' : 'M') + x + ' ' + (30 - clamp(hi / amp, -1, 1) * 27).toFixed(1) + 'L' + x + ' ' + (30 - clamp(lo / amp, -1, 1) * 27).toFixed(1);
+  }
+  return d;
+}
+function buildTraces() {
+  const d = R.dec, box = $('#traces');
+  if (!d) { box.innerHTML = ''; return; }
+  box.innerHTML = NODES.map(n => {
+    const nd = d.nodes[n];
+    const ev = d.events.map(([s, e]) => `<rect class="ev-band" x="${(s / d.dur * 1000).toFixed(1)}" y="0" width="${Math.max(0, (e - s) / d.dur * 1000).toFixed(1)}" height="60"/>`).join('');
+    return `<div class="trace${R.sel === n ? ' sel' : ''}" data-node="${n}"><div class="tl" data-node="${n}"><i style="background:${NODE_COLOR[n]}"></i><b>${n}</b><span>${NODE_PLACE[n]}</span></div><div class="tw"><svg viewBox="0 0 1000 60" preserveAspectRatio="none" aria-hidden="true">${ev}<line class="zero" x1="0" x2="1000" y1="30" y2="30"/>${nd?.wave ? `<path class="tr" d="${tracePath(nd.wave, R.amp)}" style="stroke:${NODE_COLOR[n]}"/>` : ''}</svg>${nd?.wave ? '' : `<span class="tw-empty">${nd && nd.n !== 0 ? 'bad data, no waveform' : 'no data from this node'}</span>`}<div class="ph"></div></div></div>`;
+  }).join('');
+  $$('#traces .tw').forEach(tw => {
+    const seek = e => { const r = tw.getBoundingClientRect(); R.t = clamp((e.clientX - r.left) / r.width, 0, 1) * R.dur; frame(R.t); };
+    tw.addEventListener('pointerdown', e => { seek(e); tw.setPointerCapture?.(e.pointerId); R.dragging = true; });
+    tw.addEventListener('pointermove', e => { if (R.dragging && e.buttons) seek(e); });
+    tw.addEventListener('pointerup', () => { R.dragging = false; R.last = performance.now(); });
+  });
+  $$('#traces .tl').forEach(tl => tl.addEventListener('click', () => selectNode(tl.dataset.node)));
+}
+function applyNodeClasses() {
+  $$('#node-layer .node').forEach(g => {
+    const n = g.dataset.node, st = R.nst[n] || { key: 'none' };
+    let cls = st.key;
+    if (R.dec && cls === 'ok' && R.dec.nodes[n] && R.dec.nodes[n].ok === false) cls = 'bad';
+    g.classList.remove('ok', 'bad', 'silent', 'none'); g.classList.add(cls);
+    g.setAttribute('aria-label', `Node ${n.slice(1)} at ${NODE_PLACE[n]}, ${st.text || 'no data'}. Show its readings.`);
+  });
+}
+function renderBridgeSub() {
+  const el = $('#bp-sub'), p = R.p;
+  if (!p) { el.textContent = 'Each capture is 30 seconds of vibration.'; return; }
+  const ne = (p.events || []).length;
+  el.innerHTML = `Capture ${esc(p.id)}, ${esc(fmtDT(p.ts))}. ${ne ? plural(ne, 'vehicle crossing') : 'No vehicles crossed'}.${p.live ? ' <span class="badge info">live window</span>' : ''}${RM.matches ? ' Showing the strongest moment.' : ''}`;
+}
+function updateBridgeEmpty() {
+  const box = $('#bridge-empty');
+  if (R.dec) { box.hidden = true; return; }
+  box.hidden = false;
+  let msg;
+  if (S.caps.length && !S.prevs.size) msg = '<b>No vibration preview yet.</b><br>Scores are arriving, but no preview has come in. The next capture should bring one.';
+  else if (MQ.connected) msg = '<b>Waiting for the first capture.</b><br>The base station sends one every 5 minutes.';
+  else msg = '<b>Nothing to replay yet.</b><br>Connect to your broker, open a history file, or start the demo on the <a href="#connect">Connect page</a>.';
+  box.firstElementChild.innerHTML = msg;
+}
+function renderNodeInfo() {
+  const box = $('#node-info'), n = R.sel;
+  if (!n) { box.innerHTML = '<p class="hint" style="margin:0">Select a node on the bridge (or its trace label) to see its readings.</p>'; return; }
+  const nd = R.dec?.nodes[n], st = R.nst[n] || { cls: '', text: 'no data' };
+  const spikes = nd ? nd.spikes.length : 0, bad = nd ? nd.glitches.length : 0;
+  let pk = '–';
+  if (nd && fin(nd.peak)) { pk = fmt(nd.peak, 1) + ' mg'; if (fin(nd.peakT)) pk += ` <small class="c-mute">at ${fmt(nd.peakT, 1)} s</small>`; }
+  box.innerHTML = `<div class="ni-head"><b>Node ${n.slice(1)}</b><span class="sub" style="margin:0">at ${NODE_PLACE[n]}</span><span class="badge ${st.cls}">${esc(st.text)}</span>${nd && nd.ok === false ? '<span class="badge warn">bad data in this capture</span>' : ''}</div>
+  <dl class="ni">
+    <div><dt>Vibration level (rms)</dt><dd>${nd && fin(nd.rms) ? fmt(nd.rms, 2) + ' mg' : '–'}</dd></div>
+    <div><dt>Largest peak</dt><dd>${pk}</dd></div>
+    <div><dt>Spikes</dt><dd>${nd ? spikes : '–'}</dd></div>
+    <div><dt>Bad reads</dt><dd>${nd ? bad : '–'}</dd></div>
+    <div><dt>Last reported</dt><dd>${esc(fmtAgo(st.heard, nowRef()))}</dd></div>
+  </dl>`;
+}
+
+/* ================= overview: headline, instruments, chart, lists ================= */
+const STATE_WORD = { NORMAL: 'Normal', WARNING: 'Warning', ALARM: 'Alarm' };
+const STATE_CLS = { NORMAL: 'ok', WARNING: 'warn', ALARM: 'bad' };
+function computeHeadline() {
+  const last = lastCap(), now = nowRef(), live = isLive(), hb = lastHb(), st = nodeStatuses();
+  if (!last && !hb && S.online == null) {
+    if (MQ.connected) return { cls: 'info', icon: 'wait', title: 'Waiting for the base station', text: `Connected to the broker, but nothing has arrived on shm/${esc(S.site)}/ yet. Captures come every 5 minutes; if this lasts, check the site ID on the Connect page.` };
+    return { cls: 'mute', icon: 'plug', title: 'No data yet', text: 'Connect to your broker or open a remote.sqlite history file on the <a href="#connect">Connect page</a>. You can also start the demo there.' };
+  }
+  const recent = S.caps.slice(-5).filter(c => fin(c.ratio)), over = recent.filter(c => c.ratio > 1).length;
+  const state = (S.piState && S.piState.state) || last?.state || 'NORMAL';
+  const why = humanWhy((state !== 'NORMAL' && S.piState && S.piState.why) || last?.why);
+  const stale = live && last && now - last.ts > 20 * 60;
+  let r;
+  if (S.online === '0' || stale) {
+    r = { cls: 'bad', icon: 'offline', title: 'Base station offline', text: S.online === '0' ? `The base station dropped off the network${S.onlineTs ? ' ' + fmtAgo(S.onlineTs, now) : ''}. Check its power and the 4G signal at the site; readings resume on their own when it reconnects.` : `No capture has arrived for ${fmtDur(now - last.ts)}. Check the base station's power and the 4G signal at the site.` };
+  } else if (last && last.mode === 'collect') {
+    r = { cls: 'info', icon: 'learn', title: 'Learning what normal looks like', text: 'The base station is recording captures to learn how this bridge normally vibrates. Scoring starts once it has enough of them.' };
+  } else if (state === 'ALARM') {
+    r = { cls: 'bad', icon: 'bad', title: 'Alarm: inspect the bridge', text: `${over || 3} of the last 5 captures scored above the alarm level. Arrange a visual inspection of the bridge.${why ? ' ' + esc(why) : ''}` };
+  } else if (state === 'WARNING') {
+    r = { cls: 'warn', icon: 'warn', title: 'Something has changed', text: `${over || 'Some'} of the last 5 captures scored above the alarm level. A very heavy vehicle or strong wind can do this; it becomes an alarm at 3 out of 5.${why ? ' ' + esc(why) : ''}` };
+  } else {
+    const issues = NODES.filter(n => st[n].key !== 'ok');
+    const faults = hb && Array.isArray(hb.faults) ? hb.faults : [];
+    if (issues.length || faults.length) {
+      r = { cls: 'warn', icon: 'sensor', title: 'Normal, but a sensor needs attention', text: (issues.length ? issues.map(n => `Node ${n.slice(1)} at ${NODE_PLACE[n]} ${st[n].key === 'silent' ? 'has been ' + st[n].text : 'is sending bad data'}`).join('. ') + '.' : `The base station reports: ${esc(faults.join(', '))}.`) + ' The bridge itself scores normally.' };
+    } else {
+      const rr = last?.ratio;
+      r = { cls: 'ok', icon: 'ok', title: 'Behaving normally', text: `The latest captures match how this bridge usually vibrates. Score ${fmt(rr, 2)}, ${fin(rr) && rr < 0.75 ? 'well under' : 'under'} the alarm level of 1.0.` };
+    }
+  }
+  let since = null;
+  if (S.piState && S.piState.state === state && fin(+S.piState.since)) since = +S.piState.since;
+  else if (last) { since = last.ts; for (let i = S.caps.length - 1; i >= 0; i--) { if ((S.caps[i].state || 'NORMAL') !== state) break; since = S.caps[i].ts; } }
+  r.since = since; r.last = last; r.state = state;
+  return r;
+}
+function renderHero() {
+  const h = computeHeadline(), now = nowRef(), el = $('#hero');
+  el.className = 'hero ' + h.cls;
+  const fileNote = !isLive() && S.file && h.last ? `<span>From the history file</span>` : '';
+  el.innerHTML = `<div class="hero-icon" aria-hidden="true">${ICON[h.icon]}</div><div><h1>${h.title}</h1><p>${h.text}</p></div>
+  <div class="meta">${h.last ? `<span>Last capture <b>${esc(fmtAgo(h.last.ts, nowS()))}</b></span>` : ''}${fin(h.since) ? `<span>Like this for <b>${esc(fmtDur(now - h.since))}</b></span>` : ''}${fileNote}</div>`;
+  const alarm = h.state === 'ALARM' && h.icon === 'bad';
+  document.title = (alarm ? 'Alarm: ' : h.icon === 'warn' ? 'Changed: ' : '') + 'Bridge health monitor';
+  const tab = $('.tabs a[data-page="overview"]');
+  tab.innerHTML = 'Overview' + (alarm || h.icon === 'offline' ? '<span class="tab-dot" aria-label="needs attention"></span>' : '');
+}
+function gaugeSVG(r, col) {
+  const cx = 52, cy = 54, Rr = 42;
+  const pt = f => { const a = Math.PI * (1 - f); return [cx + Rr * Math.cos(a), cy - Rr * Math.sin(a)]; };
+  const f = fin(r) ? clamp(r / 2, 0, 1) : 0;
+  const [ax, ay] = pt(0), [bx, by] = pt(1), [vx, vy] = pt(f);
+  const na = Math.PI * (1 - f), nx = cx + (Rr - 13) * Math.cos(na), ny = cy - (Rr - 13) * Math.sin(na);
+  return `<svg class="gauge" viewBox="0 0 104 62" aria-hidden="true"><path class="g-bg" d="M${ax} ${ay}A${Rr} ${Rr} 0 0 1 ${bx} ${by}"/>${f > 0.004 ? `<path class="g-val" style="stroke:${col}" d="M${ax} ${ay}A${Rr} ${Rr} 0 0 1 ${vx.toFixed(1)} ${vy.toFixed(1)}"/>` : ''}<line class="g-tick" x1="${cx}" x2="${cx}" y1="${cy - Rr - 7}" y2="${cy - Rr + 8}"/>${fin(r) ? `<line class="g-needle" x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}"/><circle cx="${cx}" cy="${cy}" r="3.5" fill="var(--ink)"/>` : ''}<text x="4" y="61">0</text><text x="94" y="61">2</text></svg>`;
+}
+function renderStrip() {
+  const last = lastCap(), bl = baseline(), hb = lastHb(), now = nowRef();
+  const ratio = last?.ratio;
+  const gcol = !fin(ratio) ? 'var(--ink3)' : ratio >= 1 ? 'var(--bad)' : ratio >= 0.8 ? 'var(--warn)' : 'var(--ok)';
+  const i1 = `<div class="inst"><div class="lab">Anomaly score</div><div class="gauge-row">${gaugeSVG(ratio, gcol)}<div><div class="big" style="color:${fin(ratio) && ratio >= 1 ? 'var(--bad)' : 'inherit'}">${fin(ratio) ? fmt(ratio, 2) : '–'}</div><div class="note">${last && last.mode === 'collect' ? 'not scored while learning' : 'alarm level is 1.0'}</div></div></div></div>`;
+  const rows = [0, 1, 2].map(i => {
+    const f = Array.isArray(last?.freq) ? +last.freq[i] : NaN, pc = freqPct(last, i, bl);
+    return `<span class="m">Mode ${i + 1}</span><span class="v">${fin(f) ? fmt(f, 2) : '–'} <small class="c-mute" style="font-size:14px">Hz</small></span><span class="d${pc != null && pc < -3 ? ' low' : ''}">${pc == null ? '' : fmtPct(pc)}</span>`;
+  }).join('');
+  const i2 = `<div class="inst"><div class="lab">Natural frequencies</div><div class="freqs">${rows}</div><div class="note">${bl ? `change from healthy (median of the first ${bl.n} normal captures)` : 'healthy baseline needs 5 good normal captures'}</div></div>`;
+  const midnight = new Date(now * 1000); midnight.setHours(0, 0, 0, 0);
+  const t0 = midnight.getTime() / 1000;
+  let tmin = Infinity, tmax = -Infinity;
+  for (let i = S.caps.length - 1; i >= 0 && S.caps[i].ts >= t0; i--) { const v = +S.caps[i].temp; if (fin(v)) { tmin = Math.min(tmin, v); tmax = Math.max(tmax, v); } }
+  const temp = +last?.temp;
+  const i3 = `<div class="inst"><div class="lab">Deck temperature</div><div class="big">${fin(temp) ? fmt(temp, 1) : '–'}<small>°C</small></div><div class="note">${fin(tmin) ? `today ${fmt(tmin, 1)} to ${fmt(tmax, 1)} °C` : 'no readings today'}</div></div>`;
+  let tot = 0, good = 0; const flags = {};
+  for (let i = S.caps.length - 1; i >= 0 && S.caps[i].ts >= now - 86400; i--) {
+    const c = S.caps[i]; tot++; if (c.q) good++;
+    else for (const f of (Array.isArray(c.flags) && c.flags.length ? c.flags : ['unspecified quality problem'])) flags[f] = (flags[f] || 0) + 1;
+  }
+  const top = Object.entries(flags).sort((a, b) => b[1] - a[1])[0];
+  const gp = tot ? good / tot * 100 : null;
+  const i4 = `<div class="inst"><div class="lab">Good captures, 24 h</div><div class="big" style="color:${gp != null && gp < 80 ? 'var(--warn)' : 'inherit'}">${gp == null ? '–' : Math.floor(gp)}<small>%</small></div><div class="note">${!tot ? 'no captures in 24 h' : top ? `most common problem: ${esc(String(top[0]).replace(/_/g, ' '))} (${top[1]})` : `all ${tot} were clean`}</div></div>`;
+  const mo = hb?.modem || {}, sig = +mo.signal_pct;
+  const bars = [20, 40, 60, 80].map((t, k) => `<i class="${fin(sig) && sig >= t - 10 ? 'on' : ''}" style="height:${6 + k * 5}px"></i>`).join('');
+  const i5 = `<div class="inst"><div class="lab">Mobile signal</div><div class="big"><span class="sigbars" aria-hidden="true">${bars}</span>${fin(sig) ? Math.round(sig) : '–'}<small>%</small></div><div class="note">${hb ? esc([mo.tech, mo.operator].filter(Boolean).join(' with ') || 'network unknown') : 'no heartbeat yet'}</div></div>`;
+  $('#strip').innerHTML = i1 + i2 + i3 + i4 + i5;
+}
+function openCapture(id) { location.hash = '#vibration/' + encodeURIComponent(id); }
+function renderOvChart() {
+  const end = nowRef(), start = end - 86400;
+  const pts = [];
+  for (let i = S.caps.length - 1; i >= 0 && S.caps[i].ts >= start; i--) { const c = S.caps[i]; pts.push([c.ts, fin(c.ratio) ? c.ratio : null, c]); }
+  pts.reverse();
+  lineChart($('#ov-score'), {
+    label: (() => { const v = pts.filter(p => fin(p[1])); if (!v.length) return 'Anomaly score over the last 24 hours: no scored captures.'; const hi = Math.max(...v.map(p => p[1])); return `Anomaly score over the last 24 hours. Latest ${fmt(v[v.length - 1][1], 2)}, highest ${fmt(hi, 2)}, alarm level 1.0. ${v.filter(p => p[1] > 1).length} captures above it.`; })(),
+    series: [{ name: 'Anomaly score', pts, color: 'var(--trace)', dotClass: p => p[2].state === 'ALARM' ? 'bad' : (p[2].state === 'WARNING' || p[1] > 1) ? 'warn' : null }],
+    xTime: true, xMin: start, xMax: end, yMin: 0, gap: 1800,
+    refs: [{ y: 1, label: 'alarm level', cls: 'alarm' }],
+    onClick: p => openCapture(p[2].id),
+    fmtTip: (v, s, p) => fmt(v, 2) + ' <span class="c-mute">' + (STATE_WORD[p[2].state] || '') + '</span>',
+    tipExtra: (x, rows) => { const c = rows[0]?.p[2]; return c && c.why && c.state !== 'NORMAL' ? `<div class="tx">${esc(humanWhy(c.why))}</div>` : (S.prevs.has(c?.id) ? '<div class="tx">Click to open its vibration</div>' : ''); },
+    empty: S.caps.length ? 'No scored captures in the last 24 hours.' : 'Scores appear here as captures arrive, every 5 minutes.',
+  });
+}
+function renderOvNodes() {
+  const st = R.nst, now = nowRef();
+  $('#ov-nodes').innerHTML = NODES.map(n => `<div class="nrow"><span class="d" style="background:var(--${st[n].cls || 'ink3'})"></span><div><b>Node ${n.slice(1)}</b> <span class="t">${NODE_PLACE[n]}</span><div class="t">last heard ${esc(fmtAgo(st[n].heard, now))}</div></div><span class="badge ${st[n].cls}">${esc(st[n].text)}</span></div>`).join('');
+}
+function eventInfo(e) {
+  if (e.type === 'state') {
+    const to = e.to, from = e.from;
+    const title = to === 'ALARM' ? 'Alarm raised' : to === 'WARNING' ? (from === 'ALARM' ? 'Alarm eased to a warning' : 'Warning: something changed') : (from ? 'Back to normal' : 'Normal');
+    return { cls: STATE_CLS[to] || 'info', title, detail: [humanWhy(e.why), fin(+e.ratio) ? `Score ${fmt(+e.ratio, 2)}.` : ''].filter(Boolean).join(' '), cap: e.capture_id };
+  }
+  if (e.type === 'fault') return { cls: 'warn', title: 'Fault: ' + (e.what || 'unknown'), detail: '' };
+  if (e.type === 'recovered') return { cls: 'ok', title: 'Recovered: ' + (e.what || ''), detail: '' };
+  return { cls: 'info', title: e.type, detail: e.what || '' };
+}
+function timelineHTML(list, groupDays) {
+  if (!list.length) return '';
+  let html = '', cur = null, open = false;
+  for (const e of list) {
+    if (groupDays) {
+      const k = dayKey(e.ts);
+      if (k !== cur) { if (open) html += '</ul>'; cur = k; html += `<div class="day-head">${new Date(e.ts * 1000).toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}</div><ul class="timeline">`; open = true; }
+    } else if (!open) { html += '<ul class="timeline">'; open = true; }
+    const info = eventInfo(e);
+    html += `<li><span class="mk ${info.cls}"></span><div class="when">${esc(groupDays ? fmtClock(e.ts) : fmtDT(e.ts))}</div><div class="what">${esc(info.title)}</div>${info.detail ? `<div class="why">${esc(info.detail)}</div>` : ''}${info.cap ? `<div class="why"><a href="#vibration/${encodeURIComponent(info.cap)}">Capture ${esc(info.cap)}</a></div>` : ''}</li>`;
+  }
+  return html + (open ? '</ul>' : '');
+}
+function renderOvEvents() {
+  const list = S.events.slice(-6).reverse();
+  $('#ov-events').innerHTML = list.length ? timelineHTML(list, false) : '<p class="hint">No events yet. State changes and faults will be listed here.</p>';
+}
+function renderOverview() {
+  R.nst = nodeStatuses();
+  renderHero(); renderStrip(); renderOvChart(); renderOvNodes(); renderOvEvents();
+  applyNodeClasses();
+  if (!R.id) { const pl = prevList(); if (pl.length) replayLoad(pl[pl.length - 1].id, !RM.matches); }
+  else if (R.pending && !S.prevs.has(R.pending)) R.pending = null;
+  updateBridgeEmpty(); updateNewerBtn(); renderNodeInfo();
+  if (R.playing) startLoop(); else frame(R.t);
+}
+
+/* ================= vibration page ================= */
+const VIB = { id: null, follow: true, spec: 'avg', key: '', optKey: '' };
+function vibCurrentId() {
+  const pl = prevList();
+  if (VIB.follow || !VIB.id) return pl.length ? pl[pl.length - 1].id : (lastCap()?.id ?? null);
+  return VIB.id;
+}
+function setVibId(id, follow) {
+  VIB.id = id; VIB.follow = !!follow;
+  $('#vib-follow').checked = VIB.follow;
+  try { history.replaceState(null, '', VIB.follow ? '#vibration' : '#vibration/' + encodeURIComponent(id)); } catch (e) { }
+  renderVibration(true);
+}
+function renderVibPicker(id) {
+  const pl = prevList();
+  const key = pl.length + '|' + (pl[pl.length - 1]?.id || '') + '|' + id;
+  if (key === VIB.optKey) return;
+  VIB.optKey = key;
+  const sel = $('#vib-select');
+  const items = pl.slice(-300).reverse();
+  let html = items.map(p => `<option value="${esc(p.id)}">${esc(fmtDT(p.ts))}${p.state && p.state !== 'NORMAL' ? ', ' + STATE_WORD[p.state].toLowerCase() : ''}${p.live ? ', live' : ''}</option>`).join('');
+  if (id && !S.prevs.has(id)) { const c = S.capById.get(id); html = `<option value="${esc(id)}">${esc(c ? fmtDT(c.ts) : id)} (no waveform)</option>` + html; }
+  sel.innerHTML = html || '<option value="">No captures yet</option>';
+  if (id) sel.value = id;
+  const idx = pl.findIndex(p => p.id === id);
+  $('#vib-prev').disabled = !(idx > 0 || (idx < 0 && pl.length));
+  $('#vib-next').disabled = !(idx >= 0 && idx < pl.length - 1);
+}
+function vibSummaryHTML(id) {
+  const c = S.capById.get(id), p = S.prevs.get(id), src = c || p;
+  if (!src) return '<p class="hint" style="margin-top:12px">No captures yet. They appear here as they arrive; you can also open a history file on the <a href="#connect">Connect page</a>.</p>';
+  const state = src.state || 'NORMAL';
+  const evs = p ? (p.events || []).length : null;
+  let spikes = null, bad = null;
+  if (p && Array.isArray(p.nodes)) {
+    spikes = 0; bad = 0;
+    for (const nd of p.nodes) { spikes += (nd.spikes || []).length; bad += (nd.glitches || []).length + (nd.ok === false ? 1 : 0); }
+  }
+  const why = humanWhy(src.why);
+  return `<div class="summary"><span class="badge ${STATE_CLS[state] || ''}">${STATE_WORD[state] || esc(state)}</span>
+    <span class="kv">Time<b>${esc(fmtDT(src.ts))}</b></span>
+    <span class="kv">Score<b>${fmt(src.ratio, 2)}</b></span>
+    <span class="kv">Vehicle crossings<b>${evs ?? '–'}</b></span>
+    <span class="kv">Spikes<b>${spikes ?? '–'}</b></span>
+    <span class="kv">Bad reads<b>${bad ?? '–'}</b></span>
+    ${src.q === false ? '<span class="badge warn">quality problem' + (Array.isArray(src.flags) && src.flags.length ? ': ' + esc(src.flags.join(', ').replace(/_/g, ' ')) : '') + '</span>' : ''}
+    ${p?.live ? '<span class="badge info">live window</span>' : ''}${src.mode === 'collect' ? '<span class="badge info">learning</span>' : ''}</div>
+    <p class="why-line">${why ? '<b>Reason.</b> ' + esc(why) : (state === 'NORMAL' ? 'Nothing unusual in this capture.' : '')} <span class="c-mute">Capture ${esc(id)}</span></p>`;
+}
+function avgSpec(dec, node) {
+  if (node) { const nd = dec.nodes[node]; return nd && nd.spec ? nd.spec : null; }
+  const arr = NODES.map(n => dec.nodes[n]).filter(x => x && x.ok && x.spec);
+  if (!arr.length) return null;
+  const L = Math.min(...arr.map(a => a.spec.length)), out = new Float32Array(L);
+  for (let k = 0; k < L; k++) { let s = 0; for (const a of arr) s += Math.pow(10, a.spec[k] / 10); out[k] = 10 * Math.log10(s / arr.length); }
+  return out;
+}
+const TYP = { key: '', res: null };
+async function typicalSpectrum(excludeId, mode) {
+  const pl = prevList(), pick = [];
+  for (let i = pl.length - 1; i >= 0 && pick.length < 15; i--) { const p = pl[i]; if (p.id !== excludeId && p.state === 'NORMAL' && p.q !== false && p.mode !== 'collect') pick.push(p); }
+  if (pick.length < 5) return { n: pick.length, val: null };
+  const key = mode + ':' + pick.map(p => p.id).join(',');
+  if (TYP.key === key) return TYP.res;
+  const specs = [];
+  for (const p of pick) { const d = await decodePreview(p); const a = d && avgSpec(d, mode === 'avg' ? null : mode); if (a) specs.push(a); }
+  if (specs.length < 5) return { n: specs.length, val: null };
+  const L = Math.min(...specs.map(s => s.length)), val = new Float32Array(L), col = new Array(specs.length);
+  for (let k = 0; k < L; k++) { for (let j = 0; j < specs.length; j++) col[j] = specs[j][k]; val[k] = median(col); }
+  TYP.key = key; TYP.res = { n: specs.length, val };
+  return TYP.res;
+}
+async function renderVibration(force) {
+  const id = vibCurrentId();
+  VIB.id = id;
+  $('#vib-follow').checked = VIB.follow;
+  renderVibPicker(id);
+  $('#vib-summary').innerHTML = vibSummaryHTML(id);
+  renderLiveState();
+  const wavesEl = $('#vib-waves'), specEl = $('#vib-spec');
+  const p = id ? S.prevs.get(id) : null;
+  const sig = [id, VIB.spec, wavesEl.clientWidth, prevList().length > 5 ? Math.min(prevList().length, 20) : prevList().length].join('|');
+  if (!force && sig === VIB.key) return;
+  VIB.key = sig;
+  if (!p) {
+    const msg = id ? 'No waveform preview was kept for this capture. Ask the base station for its raw file further down this page.' : 'No vibration previews yet. One arrives with each capture once connected, or open remote.sqlite on the <a href="#connect">Connect page</a>.';
+    wavesEl.innerHTML = `<div class="empty-chart">${msg}</div>`;
+    specEl.innerHTML = `<div class="empty-chart">The spectrum comes from the waveform preview, so there is none for this capture.</div>`;
+    return;
+  }
+  const dec = await decodePreview(p);
+  if (VIB.id !== id || !dec) return;
+  waveStack(wavesEl, {
+    label: 'Vertical vibration at each node', fs: dec.fs, dur: dec.dur, unit: 'mg', events: dec.events,
+    chans: NODES.map(n => { const nd = dec.nodes[n]; return { name: n, label: n, sub: NODE_PLACE[n], data: nd?.wave, color: NODE_COLOR[n], spikes: nd?.spikes, glitches: nd?.glitches, empty: !nd ? 'no data from this node in this capture' : nd.err ? 'could not unpack: ' + nd.err : nd.n === 0 ? 'no data from this node in this capture' : 'bad data, no waveform' }; }),
+  });
+  await renderSpectrum(p, dec);
+}
+async function renderSpectrum(p, dec) {
+  const el = $('#vib-spec'), mode = VIB.spec;
+  const spec = avgSpec(dec, mode === 'avg' ? null : mode);
+  const df = dec.df, c = S.capById.get(p.id) || p, bl = baseline();
+  if (!spec) { el.innerHTML = `<div class="empty-chart">${mode === 'avg' ? 'No node had good data in this capture.' : `Node ${mode.slice(1)} had no spectrum in this capture.`}</div>`; return; }
+  const typ = await typicalSpectrum(p.id, mode);
+  if (VIB.id !== p.id || VIB.spec !== mode) return;
+  const fmax = Math.min(dec.fs / 2, 25);
+  const toPts = s => { const out = []; for (let k = 0; k < s.length && k * df <= fmax + 1e-9; k++) out.push([k * df, s[k]]); return out; };
+  const series = [];
+  if (typ.val) series.push({ name: `Typical (median of ${typ.n} normal captures)`, pts: toPts(typ.val), color: 'var(--typ)', width: 3.5 });
+  series.push({ name: mode === 'avg' ? 'This capture, average of nodes' : `This capture, node ${mode.slice(1)}`, pts: toPts(spec), color: mode === 'avg' ? 'var(--trace)' : NODE_COLOR[mode] });
+  const vlines = [];
+  if (bl) bl.freq.forEach((f, i) => { if (fin(f)) vlines.push({ x: f, cls: 'base' }); });
+  if (Array.isArray(c.freq)) c.freq.forEach((f, i) => {
+    f = +f; if (!fin(f)) return;
+    const pc = freqPct(c, i, bl);
+    vlines.push({ x: f, cls: 'now' + (pc != null && pc < -3 ? ' low' : ''), label: `${fmt(f, 2)} Hz${pc != null ? ' (' + fmtPct(pc) + ')' : ''}` });
+  });
+  $('#spec-sub').innerHTML = `Where the vibration energy sits. Solid lines mark this capture's natural frequencies${bl ? ', dashed lines the healthy ones' : ''}.${typ.val ? '' : ` The grey typical curve appears once at least 5 normal captures have previews (now ${typ.n}).`}`;
+  lineChart(el, {
+    label: 'Vibration spectrum', series, vlines, xMin: 0, xMax: fmax, height: el.clientWidth < 500 ? 230 : 280,
+    fmtY: v => fmt(v, 0), fmtX: v => v + (v === 0 ? ' Hz' : ''),
+    tipTitle: x => fmt(x, 2) + ' Hz', fmtTip: v => fmt(v, 1) + ' dB',
+    tipExtra: () => '<div class="tx">dB of mg² per Hz</div>',
+  });
+}
+function renderLiveState() {
+  const lu = +S.liveUntil, left = fin(lu) ? lu - nowS() : -1;
+  const on = left > 0;
+  $('#live-state').hidden = !on; $('#live-stop').hidden = !on; $('#live-btn').hidden = on;
+  if (on) { const m = Math.floor(left / 60), s = Math.floor(left % 60); $('#live-count').textContent = `Live for ${m}:${String(s).padStart(2, '0')} more`; }
+}
+
+/* ---------- raw .npz ---------- */
+const RAW = { cur: null, axis: 'z' };
+async function unzip(u8) {
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength), len = u8.byteLength;
+  let eocd = -1;
+  for (let i = len - 22; i >= Math.max(0, len - 22 - 65557); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error('This is not a .npz (zip) file.');
+  let count = dv.getUint16(eocd + 10, true), cdOff = dv.getUint32(eocd + 16, true);
+  if (count === 0xFFFF || cdOff === 0xFFFFFFFF) {
+    const loc = eocd - 20;
+    if (loc >= 0 && dv.getUint32(loc, true) === 0x07064b50) {
+      const z = Number(dv.getBigUint64(loc + 8, true));
+      if (dv.getUint32(z, true) === 0x06064b50) { count = Number(dv.getBigUint64(z + 32, true)); cdOff = Number(dv.getBigUint64(z + 48, true)); }
+    }
+  }
+  const out = new Map(), td = new TextDecoder();
+  let p = cdOff;
+  for (let k = 0; k < count; k++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) throw new Error('The zip directory is damaged.');
+    const method = dv.getUint16(p + 10, true);
+    let csize = dv.getUint32(p + 20, true), usize = dv.getUint32(p + 24, true), lho = dv.getUint32(p + 42, true);
+    const nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true);
+    const name = td.decode(u8.subarray(p + 46, p + 46 + nl));
+    for (let e = p + 46 + nl, end = e + xl; e + 4 <= end;) {
+      const hid = dv.getUint16(e, true), sz = dv.getUint16(e + 2, true);
+      if (hid === 1) {
+        let q = e + 4;
+        if (usize === 0xFFFFFFFF) { usize = Number(dv.getBigUint64(q, true)); q += 8; }
+        if (csize === 0xFFFFFFFF) { csize = Number(dv.getBigUint64(q, true)); q += 8; }
+        if (lho === 0xFFFFFFFF) { lho = Number(dv.getBigUint64(q, true)); q += 8; }
+      }
+      e += 4 + sz;
+    }
+    p += 46 + nl + xl + cl;
+    if (dv.getUint32(lho, true) !== 0x04034b50) throw new Error('A file inside the zip is damaged: ' + name);
+    const lnl = dv.getUint16(lho + 26, true), lxl = dv.getUint16(lho + 28, true);
+    if (csize === 0xFFFFFFFF) { // sizes only in the local zip64 extra
+      for (let e = lho + 30 + lnl, end = e + lxl; e + 4 <= end;) { const hid = dv.getUint16(e, true), sz = dv.getUint16(e + 2, true); if (hid === 1 && sz >= 16) { usize = Number(dv.getBigUint64(e + 4, true)); csize = Number(dv.getBigUint64(e + 12, true)); } e += 4 + sz; }
+    }
+    const ds = lho + 30 + lnl + lxl, comp = u8.subarray(ds, ds + csize);
+    if (method === 0) out.set(name, comp);
+    else if (method === 8) out.set(name, await inflate(comp, 'deflate-raw'));
+    else throw new Error(`Unsupported compression (method ${method}) in ${name}.`);
+  }
+  return out;
+}
+function parseNpy(u8) {
+  if (u8[0] !== 0x93 || String.fromCharCode(u8[1], u8[2], u8[3], u8[4], u8[5]) !== 'NUMPY') throw new Error('not a .npy array');
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength), major = u8[6];
+  let hl, off;
+  if (major === 1) { hl = dv.getUint16(8, true); off = 10; } else { hl = dv.getUint32(8, true); off = 12; }
+  const header = new TextDecoder(major >= 3 ? 'utf-8' : 'latin1').decode(u8.subarray(off, off + hl));
+  const descr = (header.match(/'descr'\s*:\s*'([^']+)'/) || [])[1] || '';
+  const fortran = /'fortran_order'\s*:\s*True/.test(header);
+  const shape = ((header.match(/'shape'\s*:\s*\(([^)]*)\)/) || [])[1] || '').split(',').map(s => s.trim()).filter(Boolean).map(Number);
+  const count = shape.reduce((a, b) => a * b, 1);
+  const body = u8.subarray(off + hl), bd = new DataView(body.buffer, body.byteOffset, body.byteLength);
+  const m = /^([<>|=]?)([a-zA-Z])(\d+)$/.exec(descr);
+  if (!m) throw new Error('unsupported dtype ' + descr);
+  const le = m[1] !== '>', kind = m[2], size = +m[3];
+  let data;
+  if (kind === 'U') {
+    data = [];
+    for (let i = 0; i < count; i++) { let s = ''; for (let j = 0; j < size; j++) { const cp = bd.getUint32((i * size + j) * 4, le); if (!cp) break; s += String.fromCodePoint(cp); } data.push(s); }
+  } else if (kind === 'S' || kind === 'a') {
+    data = [];
+    for (let i = 0; i < count; i++) { let s = ''; for (let j = 0; j < size; j++) { const c = body[i * size + j]; if (!c) break; s += String.fromCharCode(c); } data.push(s); }
+  } else {
+    const rd = {
+      b1: o => body[o], i1: o => bd.getInt8(o), u1: o => body[o], i2: o => bd.getInt16(o, le), u2: o => bd.getUint16(o, le),
+      i4: o => bd.getInt32(o, le), u4: o => bd.getUint32(o, le), i8: o => Number(bd.getBigInt64(o, le)), u8: o => Number(bd.getBigUint64(o, le)),
+      f4: o => bd.getFloat32(o, le), f8: o => bd.getFloat64(o, le),
+    }[kind + size];
+    if (!rd) throw new Error('unsupported dtype ' + descr);
+    data = kind === 'f' && size === 4 ? new Float32Array(count) : new Float64Array(count);
+    for (let i = 0; i < count; i++) data[i] = rd(i * size);
+  }
+  return { descr, kind, size, shape, fortran, data };
+}
+const scalarOf = a => a && a.data && a.data.length ? a.data[0] : null;
+async function parseRaw(u8, label) {
+  const files = await unzip(u8), arr = {};
+  for (const [name, bytes] of files) { if (!/\.npy$/.test(name)) continue; try { arr[name.replace(/\.npy$/, '').split('/').pop()] = parseNpy(bytes); } catch (e) { /* object arrays are skipped */ } }
+  const x = arr.x;
+  if (!x) throw new Error('This .npz has no "x" array, so it is not a raw capture file.');
+  const names = arr.channel_names ? Array.from(arr.channel_names.data, String) : null;
+  const fs = +scalarOf(arr.fs) || 200, ts = +scalarOf(arr.ts), id = scalarOf(arr.capture_id), lsb = +scalarOf(arr.lsb_g);
+  let A = x.shape[0], B = x.shape.length > 1 ? x.shape[1] : 1;
+  if (x.shape.length === 1) { A = 1; B = x.shape[0]; }
+  let chFirst = true;
+  if (names && names.length === B && names.length !== A) chFirst = false;
+  const C = chFirst ? A : B, N = chFirst ? B : A;
+  const isInt = x.kind === 'i' || x.kind === 'u';
+  const factor = isInt ? (fin(lsb) && lsb > 0 ? lsb * 1000 : 3.9) : 1000;
+  const idx = (a, b) => x.fortran ? a + b * A : a * B + b;
+  const chans = [];
+  for (let c = 0; c < C; c++) {
+    const d = new Float32Array(N); let mean = 0;
+    for (let i = 0; i < N; i++) { const v = x.data[chFirst ? idx(c, i) : idx(i, c)] * factor; d[i] = v; mean += v; }
+    mean /= N || 1;
+    for (let i = 0; i < N; i++) d[i] -= mean;
+    const name = (names && names[c]) || `ch${c + 1}`;
+    const nm = /^(n\d+)/i.exec(name), ax = /([xyz])$/i.exec(name);
+    chans.push({ name, node: nm ? nm[1].toLowerCase() : null, axis: ax ? ax[1].toLowerCase() : null, data: d, offset: mean });
+  }
+  const key = String(id || label || 'raw-' + (S.raws.size + 1));
+  return { key, id: id ? String(id) : null, label, ts: fin(ts) ? ts : null, fs, N, dur: N / fs, chans, descr: x.descr, isInt, lsbKnown: fin(lsb) && lsb > 0 };
+}
+async function openRawBytes(u8, label, fromBroker) {
+  try {
+    const raw = await parseRaw(u8, label);
+    S.raws.set(raw.key, raw); RAW.cur = raw.key;
+    toast(fromBroker ? `Full-resolution data for capture ${raw.id || raw.key} arrived.` : `Opened ${label}.`);
+    if (currentPage() === 'vibration') renderRaw();
+  } catch (e) {
+    $('#raw-view').innerHTML = `<div class="notice bad">Could not read ${esc(label)}: ${esc(e.message)}</div>`;
+  }
+}
+function renderRaw() {
+  const view = $('#raw-view'), ctl = $('#raw-controls');
+  ctl.hidden = !S.raws.size;
+  if (!S.raws.size) { view.innerHTML = '<div class="empty-chart">No raw file open. Open a .npz file, or ask the base station for the capture shown above.</div>'; return; }
+  const sel = $('#raw-select');
+  sel.innerHTML = [...S.raws.values()].reverse().map(r => `<option value="${esc(r.key)}">${esc(r.id ? 'Capture ' + r.id : r.label)}${r.ts ? ', ' + esc(fmtDT(r.ts)) : ''}</option>`).join('');
+  if (!S.raws.has(RAW.cur)) RAW.cur = [...S.raws.keys()].pop();
+  sel.value = RAW.cur;
+  const raw = S.raws.get(RAW.cur);
+  $$('#raw-axis button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === RAW.axis));
+  let chs = raw.chans.filter(c => c.axis === RAW.axis);
+  const axisKnown = chs.length > 0;
+  if (!axisKnown) chs = raw.chans;
+  const conv = raw.isInt ? (raw.lsbKnown ? 'stored as counts, converted with the file\'s scale' : 'stored as counts; no scale in the file, so 3.9 mg per count is assumed') : 'stored in g';
+  view.innerHTML = `<p class="raw-meta">${raw.id ? 'Capture ' + esc(raw.id) + ', ' : ''}${raw.ts ? esc(fmtDT(raw.ts)) + ', ' : ''}${raw.fs} samples a second for ${fmt(raw.dur, 1)} s, ${raw.chans.length} channels (${conv}). The steady part (gravity and offset) is removed.${axisKnown ? '' : ' Channel names have no axis letter, so all channels are shown.'}</p><div class="chart" id="raw-waves"></div><h3 style="margin-top:16px">Spectrum, computed here</h3><p class="sub">Hann-window Welch average with 5.12 s segments.</p><div class="chart" id="raw-spec"></div>`;
+  waveStack($('#raw-waves'), { label: 'Raw waveforms', fs: raw.fs, dur: raw.dur, unit: 'mg', chans: chs.map(c => ({ name: c.name, label: c.name, sub: c.node ? NODE_PLACE[c.node] : '', data: c.data, color: NODE_COLOR[c.node] || 'var(--trace)' })) });
+  const series = chs.map(c => {
+    const w = welch(c.data, raw.fs, 5.12), pts = [];
+    for (let k = 0; k < w.psd.length; k++) pts.push([k * w.df, 10 * Math.log10(Math.max(w.psd[k], 1e-12))]);
+    return { name: c.name, pts, color: NODE_COLOR[c.node] || 'var(--trace)' };
+  });
+  const bl = baseline();
+  lineChart($('#raw-spec'), {
+    label: 'Raw spectrum', series, xMin: 0, xMax: raw.fs / 2, height: 260,
+    vlines: bl ? bl.freq.filter(fin).map(f => ({ x: f, cls: 'base' })) : [],
+    fmtY: v => fmt(v, 0), tipTitle: x => fmt(x, 2) + ' Hz', fmtTip: v => fmt(v, 1) + ' dB',
+  });
+}
+
+/* ================= trends ================= */
+const TR = { range: '24h', rows: 100, last: 0, key: '' };
+function renderTrends(force) {
+  const spans = { '6h': 6 * 3600, '24h': 86400, '7d': 7 * 86400, all: Infinity };
+  const span = spans[TR.range], end = nowRef(), start = span === Infinity ? (S.caps[0]?.ts ?? end - 86400) : end - span;
+  const key = TR.range + '|' + $('#tr-score').clientWidth;
+  if (!force && key === TR.key && performance.now() - TR.last < 10000) return;
+  TR.key = key; TR.last = performance.now();
+  $$('#tr-range button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === TR.range));
+  const caps = S.caps.filter(c => c.ts >= start && c.ts <= end + 60);
+  const bl = baseline();
+  const hourly = (span === Infinity ? end - start : span) > 86400 + 1;
+  let rows;
+  if (hourly) {
+    const b = new Map();
+    for (const c of caps) { const h = Math.floor(c.ts / 3600); if (!b.has(h)) b.set(h, []); b.get(h).push(c); }
+    rows = [...b.entries()].sort((x, y) => x[0] - y[0]).map(([h, g]) => ({
+      ts: h * 3600 + 1800, n: g.length, ratio: median(g.map(c => c.ratio)), maxRatio: Math.max(...g.map(c => fin(c.ratio) ? c.ratio : -1)),
+      fpc: [0, 1, 2].map(i => median(g.map(c => freqPct(c, i, bl)))), mac: [0, 1, 2].map(i => median(g.map(c => Array.isArray(c.mac) ? +c.mac[i] : NaN))), temp: median(g.map(c => +c.temp)),
+      state: g.some(c => c.state === 'ALARM') ? 'ALARM' : g.some(c => c.state === 'WARNING') ? 'WARNING' : 'NORMAL',
+    }));
+  } else rows = caps.map(c => ({ ts: c.ts, id: c.id, ratio: c.ratio, fpc: [0, 1, 2].map(i => freqPct(c, i, bl)), mac: [0, 1, 2].map(i => Array.isArray(c.mac) ? +c.mac[i] : null), temp: +c.temp, state: c.state, c }));
+  const gap = hourly ? 3 * 3600 : 1800;
+  $('#tr-sub').textContent = caps.length ? `${plural(caps.length, 'capture')} from ${fmtDT(caps[0].ts)} to ${fmtDT(caps[caps.length - 1].ts)}.${hourly ? ' Charts show hourly medians.' : ''}` : 'No captures in this range.';
+  const common = { xTime: true, xMin: start, xMax: end, gap, height: 200 };
+  const emptyMsg = S.caps.length ? 'No captures in this range. Try a longer one.' : 'No captures yet. Connect, or open a history file on the <a href="#connect">Connect page</a>.';
+  lineChart($('#tr-score'), {
+    ...common, label: 'Anomaly score', yMin: 0, refs: [{ y: 1, label: 'alarm level', cls: 'alarm' }], empty: emptyMsg,
+    series: [{ name: hourly ? 'Hourly median score' : 'Anomaly score', pts: rows.map(r => [r.ts, r.ratio, r]), color: 'var(--trace)', dotClass: p => p[2].state === 'ALARM' ? 'bad' : p[2].state === 'WARNING' ? 'warn' : null }],
+    onClick: hourly ? null : p => openCapture(p[2].id),
+    fmtTip: (v, s, p) => fmt(v, 2) + (hourly && fin(p[2].maxRatio) ? ` <span class="c-mute">highest ${fmt(p[2].maxRatio, 2)}</span>` : ''),
+    tipExtra: (x, rs) => hourly ? `<div class="tx">${rs[0]?.p[2].n} captures in this hour</div>` : '<div class="tx">Click to open its vibration</div>',
+  });
+  lineChart($('#tr-freq'), {
+    ...common, label: 'Frequency change', refs: [{ y: -3, label: MINUS + '3 %', cls: 'warn' }, { y: 0, cls: 'zero' }],
+    empty: bl ? emptyMsg : 'Needs at least 5 good normal captures to set the healthy baseline.',
+    series: [0, 1, 2].map(i => ({ name: `Mode ${i + 1}${bl ? ' (' + fmt(bl.freq[i], 2) + ' Hz)' : ''}`, pts: rows.map(r => [r.ts, r.fpc[i]]), color: MODE_COLOR[i] })),
+    fmtY: v => (v > 0 ? '+' : '') + fmt(v, 1), fmtTip: v => fmtPct(v, 2),
+  });
+  $('#tr-freq-sub').textContent = bl ? `Change from the healthy baseline (median of the first ${bl.n} normal captures). A drop of more than 3 % deserves a look.` : 'A drop of more than 3 % deserves a look.';
+  lineChart($('#tr-mac'), {
+    ...common, label: 'Mode shape match', yMax: 1, empty: emptyMsg,
+    series: [0, 1, 2].map(i => ({ name: `Mode ${i + 1}`, pts: rows.map(r => [r.ts, r.mac[i]]), color: MODE_COLOR[i] })),
+    fmtY: v => fmt(v, 2), fmtTip: v => fmt(v, 3),
+  });
+  lineChart($('#tr-temp'), {
+    ...common, label: 'Deck temperature', empty: emptyMsg,
+    series: [{ name: 'Deck temperature', pts: rows.map(r => [r.ts, r.temp]), color: 'var(--c2)' }],
+    fmtY: v => fmt(v, 0) + '°', fmtTip: v => fmt(v, 1) + ' °C',
+  });
+  renderTrendTable(caps, bl);
+}
+function renderTrendTable(caps, bl) {
+  const list = caps.slice().reverse(), shown = list.slice(0, TR.rows);
+  $('#tr-count').textContent = list.length ? `Newest first, ${shown.length} of ${list.length}` : '';
+  const head = `<thead><tr><th>Time</th><th>Capture</th><th>State</th><th class="r">Score</th>${[1, 2, 3].map(i => `<th class="r">Mode ${i}</th>`).join('')}<th class="r">Temp</th><th>Quality</th></tr></thead>`;
+  const body = shown.map(c => {
+    const f = [0, 1, 2].map(i => { const v = Array.isArray(c.freq) ? +c.freq[i] : NaN, pc = freqPct(c, i, bl); return fin(v) ? `${fmt(v, 2)}${pc != null ? ` <span class="${pc < -3 ? 'c-bad' : 'c-mute'}">${fmtPct(pc)}</span>` : ''}` : '–'; });
+    return `<tr><td>${esc(fmtDT(c.ts))}</td><td><a href="#vibration/${encodeURIComponent(c.id)}">${esc(c.id)}</a>${S.prevs.has(c.id) ? '' : ' <span class="c-mute" title="No waveform preview">(score only)</span>'}</td><td><span class="badge ${STATE_CLS[c.state] || ''}">${STATE_WORD[c.state] || esc(c.state || '')}</span></td><td class="r">${fmt(c.ratio, 2)}</td>${f.map(x => `<td class="r">${x}</td>`).join('')}<td class="r">${fin(+c.temp) ? fmt(+c.temp, 1) + ' °C' : '–'}</td><td>${c.q ? 'good' : `<span class="c-warn">${esc((c.flags || []).join(', ').replace(/_/g, ' ') || 'problem')}</span>`}</td></tr>`;
+  }).join('');
+  $('#tr-table').innerHTML = list.length ? head + '<tbody>' + body + '</tbody>' : '<tbody><tr><td style="padding:16px">No captures in this range.</td></tr></tbody>';
+  $('#tr-more').hidden = list.length <= TR.rows;
+}
+
+/* ================= events ================= */
+const EV = { filter: 'all' };
+function renderEvents() {
+  $$('#ev-filter button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === EV.filter));
+  let list = S.events.slice().reverse();
+  if (EV.filter === 'state') list = list.filter(e => e.type === 'state' && (e.to === 'ALARM' || e.to === 'WARNING' || e.from === 'ALARM' || e.from === 'WARNING'));
+  if (EV.filter === 'fault') list = list.filter(e => e.type === 'fault' || e.type === 'recovered');
+  const shown = list.slice(0, 400);
+  $('#ev-list').innerHTML = shown.length ? timelineHTML(shown, true) + (list.length > shown.length ? `<p class="hint">Showing the newest 400 of ${list.length}.</p>` : '') : `<div class="empty-chart">${S.events.length ? 'No events of this kind.' : 'No events yet. The base station reports each change of state and each fault; older ones come from the history file.'}</div>`;
+}
+
+/* ================= system ================= */
+function renderSystem() {
+  const hb = lastHb(), now = nowRef();
+  const on = S.online === '1' ? '<span class="badge ok">Online</span>' : S.online === '0' ? '<span class="badge bad">Offline</span>' : '<span class="badge">Online status unknown</span>';
+  $('#sys-online').innerHTML = on;
+  $('#sys-sub').textContent = hb ? `From the heartbeat received ${fmtAgo(hb._ts, nowS())} (one every 15 minutes).` : 'From the latest heartbeat (sent every 15 minutes).';
+  if (!hb) {
+    $('#sys-facts').innerHTML = '<div class="empty-chart" style="margin-top:10px">No heartbeat yet. The base station sends one every 15 minutes; use "Request status" below to ask for one now.</div>';
+  } else {
+    const mo = hb.modem || {}, lu = +S.liveUntil;
+    const fact = (k, v, small) => `<div><dt>${k}</dt><dd>${v}${small ? ` <small>${small}</small>` : ''}</dd></div>`;
+    $('#sys-facts').innerHTML = `<dl class="facts">
+      ${fact('Running for', esc(fmtDur(+hb.uptime_s)))}
+      ${fact('Processor temperature', fin(+hb.cpu_temp_c) ? fmt(+hb.cpu_temp_c, 1) + ' °C' : '–', +hb.cpu_temp_c > 75 ? 'hot' : '')}
+      ${fact('Free disk space', fin(+hb.disk_free_gb) ? fmt(+hb.disk_free_gb, 1) + ' GB' : '–')}
+      ${fact('Waiting to send', fin(+hb.backlog) ? plural(+hb.backlog, 'message') : '–')}
+      ${fact('Mobile signal', fin(+mo.signal_pct) ? Math.round(+mo.signal_pct) + ' %' : '–', esc([mo.tech, mo.operator].filter(Boolean).join(' with ')))}
+      ${fact('Live view', fin(lu) && lu > nowS() ? 'on' : 'off', fin(lu) && lu > nowS() ? 'until ' + fmtClock(lu) : '')}
+    </dl>`;
+  }
+  const st = nodeStatuses();
+  $('#sys-nodes').innerHTML = `<div class="nodes-list">${NODES.map(n => {
+    const e = hb && Array.isArray(hb.nodes) ? hb.nodes.find(x => x && (x.node_id === n || x.node === n)) : null;
+    return `<div class="nrow"><span class="d" style="background:var(--${st[n].cls || 'ink3'})"></span><div><b>Node ${n.slice(1)}</b> <span class="t">${NODE_PLACE[n]}</span><div class="t">${e && fin(+e.age_s) ? `last packet ${fmtDur(+e.age_s)} before the heartbeat` : 'not in the latest heartbeat'}</div></div><span class="badge ${st[n].cls}">${esc(st[n].text)}</span></div>`;
+  }).join('')}</div>`;
+  const faults = hb && Array.isArray(hb.faults) ? hb.faults : [];
+  $('#sys-faults').innerHTML = !hb ? '<p class="hint">Faults are listed in each heartbeat.</p>' : faults.length ? `<ul class="timeline">${faults.map(f => `<li><span class="mk warn"></span><div class="what">${esc(String(f).replace(/_/g, ' '))}</div></li>`).join('')}</ul>` : '<p class="hint"><span class="c-ok">✓</span> None. Everything the base station checks is working.</p>';
+  renderCmdLog();
+}
+
+/* ================= remote commands ================= */
+let TOKEN = '';
+const CMDS = [];
+const CMD_NAME = { ping: 'Ping', status: 'Status', sms_test: 'Test SMS', set_mode: 'Set mode', send_raw: 'Raw file', live_view: 'Live view', live_stop: 'Stop live' };
+function sendCmd(cmd, extra = {}) {
+  if (!TOKEN) {
+    toast('Enter the command token first.');
+    if (currentPage() === 'vibration') { $('#vib-token-row').hidden = false; $('#vib-token').focus(); } else $('#sys-token').focus();
+    return false;
+  }
+  if (!DEMO.on && !(MQ.client && MQ.connected)) { toast('Not connected to the broker. Connect first on the Connect page.'); return false; }
+  const entry = { cmd, t: nowS(), status: 'sent', detail: 'sent, waiting for a reply' };
+  CMDS.unshift(entry); if (CMDS.length > 40) CMDS.pop();
+  entry.timer = setTimeout(() => { if (entry.status === 'sent') { entry.status = 'none'; entry.detail = 'No reply after 30 s. The base station may be offline or busy uploading.'; renderCmdLog(); } }, 30000);
+  const msg = { cmd, token: TOKEN, ...extra };
+  if (DEMO.on) demoCommand(msg);
+  else MQ.client.publish(`shm/${S.site}/cmd`, JSON.stringify(msg), { qos: 1 }, err => { if (err) { entry.status = 'fail'; entry.detail = 'Could not send: ' + err.message; renderCmdLog(); } });
+  renderCmdLog();
+  return true;
+}
+function onCmdReply(j) {
+  if (!j || !j.cmd) return;
+  let e = CMDS.find(x => x.cmd === j.cmd && x.status === 'sent');
+  if (!e) { e = { cmd: j.cmd, t: nowS() }; CMDS.unshift(e); }
+  clearTimeout(e.timer);
+  e.status = j.ok ? 'ok' : 'fail';
+  e.detail = j.ok ? (j.detail || 'done') : (j.error || j.detail || 'failed');
+  if ('live_until' in j) S.liveUntil = j.live_until;
+  if (j.cmd === 'live_view' && j.ok) { VIB.follow = true; }
+  toast(`${CMD_NAME[j.cmd] || j.cmd}: ${j.ok ? (j.detail || 'done') : (j.error || 'failed')}`);
+  renderCmdLog(); scheduleRender();
+}
+function renderCmdLog() {
+  const el = $('#cmd-log');
+  if (!CMDS.length) { el.innerHTML = '<li class="c-mute" style="display:block">Nothing sent yet.</li>'; return; }
+  el.innerHTML = CMDS.map(e => `<li><span class="c-mute">${esc(fmtClock(e.t, true))}</span><b>${esc(CMD_NAME[e.cmd] || e.cmd)}</b><span class="lr ${e.status === 'ok' ? 'c-ok' : e.status === 'sent' ? 'c-mute' : 'c-bad'}">${esc(e.detail)}</span></li>`).join('');
+}
+
+/* ================= MQTT ================= */
+const MQ = { client: null, connected: false, status: 'idle', msg: '', cls: '', host: null, url: null, t0: 0, timer: 0 };
+function normalizeBroker(input) {
+  let s = String(input || '').trim();
+  if (!s) return null;
+  s = s.replace(/(\.emqxsl\.com)+/gi, '.emqxsl.com');
+  if (/^wss?:\/\//i.test(s)) {
+    try { const u = new URL(s); if (!u.pathname || u.pathname === '/') u.pathname = '/mqtt'; return { url: u.toString(), host: u.hostname }; } catch (e) { return null; }
+  }
+  s = s.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').split(/[/?#]/)[0].split(':')[0].toLowerCase();
+  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(s)) return null;
+  return { url: `wss://${s}:8084/mqtt`, host: s };
+}
+function setConn(status, msg, cls) { MQ.status = status; MQ.msg = msg || ''; MQ.cls = cls || ''; renderConnMsg(); renderHeader(); }
+function explainMqttError(err, elapsed) {
+  const m = String((err && (err.message || err)) || '').toLowerCase(), code = err && err.code;
+  const viewer = inArtifactViewer() ? ' This page is running inside the claude.ai viewer, which blocks outside connections: download the file and open it directly in Chrome instead.' : '';
+  if (/not authori[sz]ed|bad user ?name or password|authenticat/.test(m) || [4, 5, 134, 135].includes(code))
+    return 'The broker turned down the username or password. Check the dashboard login you created in the EMQX console (it is separate from the Pi\'s login) and try again.';
+  if (/connack timeout|timed? ?out/.test(m) || (!m && elapsed >= 8000))
+    return 'The broker did not answer. Either this network blocks port 8084 (common on office, campus and hotel Wi-Fi) or the address is wrong. Check the address, or try again on a phone hotspot.' + viewer;
+  if (!m || /enotfound|getaddrinfo|name_not_resolved|unknown host|dns|websocket/.test(m))
+    return `Could not reach ${MQ.host || 'the broker'}. The address is probably wrong or misspelled; copy it again from the EMQX console. If it is right, this network may be blocking port 8084.` + viewer;
+  return 'Could not connect: ' + (err.message || err) + '.' + viewer;
+}
+function mqttDisconnect(silent) {
+  clearTimeout(MQ.timer);
+  if (MQ.client) { const c = MQ.client; MQ.client = null; try { c.removeAllListeners && c.removeAllListeners(); c.on && c.on('error', () => { }); c.end(true); } catch (e) { } }
+  MQ.connected = false;
+  if (!silent) setConn('idle', 'Disconnected.');
+}
+async function mqttConnect(cfg) {
+  const nb = normalizeBroker(cfg.addr);
+  if (!nb) { setConn('error', 'That does not look like a broker address. Paste the address shown in the EMQX console, for example k1a2b3c4.ala.asia-southeast1.emqxsl.com.', 'bad'); return; }
+  if (!cfg.user) { setConn('error', 'Enter the dashboard username.', 'bad'); return; }
+  mqttDisconnect(true);
+  if (DEMO.on) stopDemo();
+  const site = (cfg.site || 'bridge01').trim();
+  if (site !== S.site) { if (S.file) resetData(); S.site = site; }
+  MQ.host = nb.host; MQ.url = nb.url;
+  setConn('connecting', `Connecting to ${nb.url}`, 'info');
+  try { await loadScript(MQTT_URL); } catch (e) { setConn('error', e.message, 'bad'); return; }
+  if (!window.mqtt || !window.mqtt.connect) { setConn('error', 'The MQTT library did not load properly. Reload the page and try again.', 'bad'); return; }
+  let client, ever = false, lastErr = null;
+  MQ.t0 = Date.now();
+  try {
+    client = window.mqtt.connect(nb.url, { username: cfg.user, password: cfg.pass || '', clientId: 'shm-dash-' + Math.random().toString(16).slice(2, 10), clean: true, connectTimeout: 15000, reconnectPeriod: 0, keepalive: 60, protocolVersion: 4 });
+  } catch (e) { setConn('error', explainMqttError(e, 0), 'bad'); return; }
+  MQ.client = client;
+  const fail = (err) => {
+    if (MQ.client !== client) return;
+    clearTimeout(MQ.timer);
+    setConn('error', explainMqttError(err, Date.now() - MQ.t0), 'bad');
+    MQ.client = null; MQ.connected = false;
+    try { client.end(true); } catch (e) { }
+    renderHeader(); scheduleRender();
+  };
+  MQ.timer = setTimeout(() => { if (!ever) fail(new Error('connack timeout')); }, 16000);
+  client.on('connect', () => {
+    if (MQ.client !== client) return;
+    ever = true; clearTimeout(MQ.timer);
+    MQ.connected = true; client.options.reconnectPeriod = 5000;
+    client.subscribe(`shm/${S.site}/#`, { qos: 1 }, (err, granted) => {
+      if (err || (granted && granted.some(g => g.qos === 128))) setConn('error', `Connected, but this login may not read shm/${S.site}/#. Check the broker's access rules for the dashboard user.`, 'bad');
+    });
+    setConn('connected', `Connected to ${MQ.host}. Listening on shm/${S.site}/. New captures arrive every 5 minutes; for older data, open the history file.`, 'ok');
+    scheduleRender(true);
+  });
+  client.on('message', (topic, payload, packet) => onMqttMessage(topic, payload, packet));
+  client.on('error', err => { lastErr = err; if (!ever) fail(err); else setConn('reconnecting', 'Connection problem: ' + explainMqttError(err, 0), 'bad'); });
+  client.on('close', () => {
+    if (MQ.client !== client) return;
+    if (!ever) { fail(lastErr); return; }
+    MQ.connected = false; setConn('reconnecting', 'Connection lost. Trying again every 5 seconds.', 'bad'); scheduleRender();
+  });
+  client.on('reconnect', () => { if (MQ.client === client) setConn('reconnecting', 'Reconnecting to the broker.', 'info'); });
+  client.on('offline', () => { if (MQ.client === client && ever) { MQ.connected = false; setConn('reconnecting', 'Offline. Will reconnect when the network is back.', 'bad'); } });
+}
+function onMqttMessage(topic, payload, packet) {
+  const pre = `shm/${S.site}/`;
+  if (!topic.startsWith(pre)) return;
+  const sub = topic.slice(pre.length);
+  const bytes = payload instanceof Uint8Array ? payload : new Uint8Array(payload || []);
+  S.lastMsg = nowS();
+  if (sub.startsWith('raw/')) { if (bytes.length) openRawBytes(bytes.slice(), sub, true); return; }
+  if (!bytes.length) return;
+  const text = new TextDecoder().decode(bytes);
+  if (sub === 'online') { S.online = text.trim().replace(/"/g, '') === '1' ? '1' : '0'; S.onlineTs = packet && packet.retain ? null : nowS(); scheduleRender(); return; }
+  const j = safeJSON(text);
+  if (!j) return;
+  switch (sub) {
+    case 'capture': addCapture(j); break;
+    case 'preview': addPreview(j); break;
+    case 'event': addEvent(j); break;
+    case 'state': S.piState = j; break;
+    case 'heartbeat': addHeartbeat(j, nowS()); break;
+    case 'cmd_reply': onCmdReply(j); break;
+    default: return;
+  }
+  scheduleRender();
+}
+
+/* ================= history file (SQLite) ================= */
+async function openSqlite(file) {
+  const msg = $('#file-msg');
+  msg.innerHTML = `<div class="notice info">Reading ${esc(file.name)}…</div>`;
+  try {
+    await loadScript(SQLJS_URL);
+    const SQL = await window.initSqlJs();
+    const db = new SQL.Database(new Uint8Array(await file.arrayBuffer()));
+    const all = (sql, p = []) => { try { const st = db.prepare(sql); st.bind(p); const o = []; while (st.step()) o.push(st.get()); st.free(); return o; } catch (e) { return null; } };
+    const capSites = all('SELECT DISTINCT site FROM captures');
+    if (!capSites) throw new Error('it has no captures table. Is this the remote.sqlite file from the laptop receiver?');
+    const sites = capSites.map(r => String(r[0]));
+    let site = S.site, note = '';
+    if (sites.length && !sites.includes(site)) { note = ` It had nothing for site "${esc(site)}", so it shows "${esc(sites[0])}".`; site = sites[0]; }
+    if (DEMO.on) stopDemo();
+    else if (site !== S.site) resetData();
+    S.site = site; $('#f-site').value = site;
+    const caps = (all('SELECT json FROM captures WHERE site=? ORDER BY ts', [site]) || []).map(r => safeJSON(r[0])).filter(Boolean);
+    addCapturesBulk(caps);
+    for (const r of all('SELECT ts, json FROM events WHERE site=? ORDER BY ts', [site]) || []) { const e = safeJSON(r[1]); if (e) { if (!fin(+e.ts)) e.ts = +r[0]; addEvent(e); } }
+    for (const r of all('SELECT ts, json FROM heartbeats WHERE site=? ORDER BY ts', [site]) || []) { const h = safeJSON(r[1]); if (h) addHeartbeat(h, +r[0]); }
+    for (const r of all('SELECT key, value, ts FROM status WHERE site=?', [site]) || []) {
+      if (r[0] === 'state') { const v = safeJSON(r[1]); if (v && (!S.piState || !MQ.connected)) S.piState = v; }
+      if (r[0] === 'online' && !MQ.connected) { S.online = String(r[1]).replace(/"/g, '').trim() === '1' ? '1' : '0'; S.onlineTs = fin(+r[2]) ? +r[2] : null; }
+    }
+    let np = 0;
+    for (const r of all('SELECT json FROM previews WHERE site=? ORDER BY ts', [site]) || []) { const p = safeJSON(r[0]); if (p) { addPreview(p, true); np++; } }
+    db.close();
+    S.file = { name: file.name, caps: caps.length, prevs: np, from: caps[0]?.ts, to: caps[caps.length - 1]?.ts };
+    replayReset(); VIB.follow = true; VIB.key = ''; TR.key = '';
+    msg.innerHTML = caps.length
+      ? `<div class="notice ok">Loaded ${esc(file.name)}: ${plural(caps.length, 'capture')} from ${esc(fmtDT(caps[0].ts))} to ${esc(fmtDT(caps[caps.length - 1].ts))}, ${plural(np, 'waveform preview')}, ${plural(S.events.length, 'event')}.${note}</div>`
+      : `<div class="notice">The file opened, but it has no captures for site "${esc(site)}".${note}</div>`;
+    renderHeader(); scheduleRender(true);
+  } catch (e) {
+    msg.innerHTML = `<div class="notice bad">Could not read ${esc(file.name)}: ${esc(e.message)}</div>`;
+  }
+}
+
+/* ================= demo mode ================= */
+const DEMO = { on: false, timer: 0, damage: 0, mode: 'monitor', liveUntil: 0, ratios: [], state: 'NORMAL', since: 0, overWhy: '', start: 0, learnEnd: 0, silent: null, boot: 0, tick: 0 };
+const F0 = [4.2, 13.3, 16.3];
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function gauss(r) { let u = 0; while (u === 0) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); }
+function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function poisson(r, lam) { const L = Math.exp(-lam); let k = 0, p = 1; do { k++; p *= r(); } while (p > L); return k - 1; }
+function capId(ts) { return new Date(ts * 1000).toISOString().slice(0, 19).replace(/[-:]/g, ''); }
+function demoTemp(ts, r) {
+  const d = new Date(ts * 1000), h = d.getHours() + d.getMinutes() / 60, day = Math.floor(ts / 86400);
+  const off = [0, 1.6, -1.2, 2.3, 0.6, -0.9, 1.3, 0.2][((day % 8) + 8) % 8];
+  return 15 + off + 6.5 * Math.sin(2 * Math.PI * (h - 9) / 24) + (r ? gauss(r) * 0.2 : 0);
+}
+function demoCapture(ts) {
+  const id = capId(ts), r = mulberry32(hashStr(id));
+  const T = demoTemp(ts, r), dmg = DEMO.damage;
+  const freq = F0.map((f, k) => +(f * (1 - 0.0009 * (T - 15)) * (1 + gauss(r) * 0.0016) * Math.sqrt(1 - dmg * [1, 0.7, 0.45][k])).toFixed(3));
+  const mac = [0.993, 0.978, 0.958].map((m, k) => +clamp(m - Math.abs(gauss(r)) * [0.003, 0.006, 0.01][k] - dmg * [0.15, 0.6, 0.35][k], 0, 1).toFixed(3));
+  const silent = DEMO.silent && ts >= DEMO.silent[0] && ts < DEMO.silent[1];
+  const badNode = r() < 0.012 ? NODES[Math.floor(r() * 3)] : null;
+  const collect = DEMO.mode === 'collect' || ts < DEMO.learnEnd;
+  let ratio = null, why;
+  if (collect) why = 'recording to learn normal behaviour';
+  else if (dmg > 0) { ratio = 1.5 + r() * 0.9; why = `freq_m1 lower than expected (-${(6 + r() * 1.5).toFixed(1)} sd); mac_m2 lower than expected (-${(4 + r()).toFixed(1)} sd)`; }
+  else if (r() < 0.006) { ratio = 1.03 + r() * 0.35; why = ['rms_n2 higher than expected (+4.8 sd)', 'freq_m3 higher than expected (+3.9 sd)', 'mac_m3 lower than expected (-3.6 sd)'][Math.floor(r() * 3)]; }
+  else { ratio = Math.exp(Math.log(0.4) + gauss(r) * 0.27); why = 'all features within the normal range'; }
+  if (ratio != null) ratio = +ratio.toFixed(3);
+  const nodes = {}, flags = [];
+  for (const n of NODES) {
+    if (silent && n === 'n3') continue;
+    nodes[n] = n === badNode ? null : +((ratio ?? 0.3) * (0.75 + r() * 0.5)).toFixed(3);
+  }
+  if (silent) flags.push('n3 silent');
+  if (badNode) flags.push(badNode + ' dropout');
+  let state = 'NORMAL';
+  if (ratio != null) {
+    DEMO.ratios.push(ratio); if (DEMO.ratios.length > 5) DEMO.ratios.shift();
+    if (ratio > 1) DEMO.overWhy = why;
+    const cnt = DEMO.ratios.filter(v => v > 1).length;
+    state = cnt >= 3 ? 'ALARM' : cnt > 0 ? 'WARNING' : 'NORMAL';
+  } else DEMO.ratios = [];
+  if (state !== DEMO.state) {
+    addEvent({ type: 'state', from: DEMO.state, to: state, capture_id: id, ts, ratio, why: state === 'NORMAL' ? '' : DEMO.overWhy });
+    DEMO.state = state; DEMO.since = ts;
+  }
+  const thr = 0.0215;
+  return { site: S.site, id, ts, mode: collect ? 'collect' : 'monitor', state, q: flags.length === 0, flags, score: ratio == null ? null : +(ratio * thr).toFixed(5), ratio, thr, why, temp: +T.toFixed(2), freq, mac, nodes };
+}
+/* modal simulation: three lightly damped resonators, mode shapes sin(k pi x), exact discretisation, 200 Hz */
+function demoSim(cap) {
+  const r = mulberry32(hashStr(cap.id + ':w'));
+  const fs = 200, N = 6000, dt = 1 / fs, dur = 30;
+  const hour = new Date(cap.ts * 1000).getHours();
+  const busy = (hour >= 8 && hour < 10) || (hour >= 17 && hour < 19), day = hour >= 6 && hour < 22;
+  const nEv = Math.min(6, poisson(r, busy ? 3.4 : day ? 1.9 : 0.35));
+  const events = [];
+  for (let i = 0; i < nEv; i++) { const len = 3 + r() * 3, s = r() * (dur - 2); events.push({ s, e: Math.min(dur, s + len), m: 0.5 + r() * 1.3, dir: r() < 0.5 ? 1 : -1 }); }
+  events.sort((a, b) => a.s - b.s);
+  const f = Array.isArray(cap.freq) ? cap.freq : F0, zeta = [0.014, 0.017, 0.021], wgt = [1, 0.6, 0.42];
+  const modes = [0, 1, 2].map(k => {
+    const w = 2 * Math.PI * f[k], z = zeta[k], wd = w * Math.sqrt(1 - z * z), e = Math.exp(-z * w * dt), c = Math.cos(wd * dt), s = Math.sin(wd * dt);
+    return { w, z, a11: e * (c + z * w / wd * s), a12: e * s / wd, a21: -e * w * w / wd * s, a22: e * (c - z * w / wd * s), q: 0, v: 0 };
+  });
+  const phi = NODES.map(n => [1, 2, 3].map(k => Math.sin(k * Math.PI * NODE_U[n])));
+  const acc = NODES.map(() => new Float32Array(N));
+  const entry = events.map(ev => Math.round(ev.s * fs)), exit = events.map(ev => Math.round(ev.e * fs));
+  for (let i = -800; i < N; i++) {
+    const t = i * dt;
+    for (let k = 0; k < 3; k++) {
+      const md = modes[k];
+      let F = gauss(r) * 0.04;
+      if (i >= 0) for (let j = 0; j < events.length; j++) {
+        const ev = events[j];
+        if (t >= ev.s && t <= ev.e) { const u = (t - ev.s) / (ev.e - ev.s), pos = ev.dir > 0 ? u : 1 - u; F += ev.m * Math.sin((k + 1) * Math.PI * pos) * 0.3 * gauss(r); }
+        if (i === entry[j] || i === exit[j]) F += ev.m * 2.2 * (k === 1 ? 0.6 : 1);
+      }
+      md.v += F;
+      const q2 = md.a11 * md.q + md.a12 * md.v, v2 = md.a21 * md.q + md.a22 * md.v;
+      md.q = q2; md.v = v2;
+      if (i >= 0) { const a = -(md.w * md.w * md.q + 2 * md.z * md.w * md.v) * wgt[k]; for (let j = 0; j < 3; j++) acc[j][i] += phi[j][k] * a; }
+    }
+  }
+  // scale so the quiet part has about 0.5 mg rms
+  let ss = 0, cnt = 0;
+  for (let i = 0; i < N; i++) {
+    const t = i * dt;
+    if (events.some(ev => t >= ev.s - 0.2 && t <= ev.e + 2.5)) continue;
+    for (let j = 0; j < 3; j++) { ss += acc[j][i] * acc[j][i]; cnt++; }
+  }
+  let scale;
+  if (cnt > 600) scale = 0.5 / Math.sqrt(ss / cnt);
+  else { ss = 0; for (let j = 0; j < 3; j++) for (let i = 0; i < N; i++) ss += acc[j][i] * acc[j][i]; scale = 3 / Math.sqrt(ss / (3 * N)); }
+  for (let j = 0; j < 3; j++) for (let i = 0; i < N; i++) acc[j][i] = acc[j][i] * scale + gauss(r) * 0.25;
+  const spikes = [], glitches = [];
+  if (r() < 0.2) { const j = Math.floor(r() * 3), i = Math.floor(r() * (N - 4)), mg = (28 + r() * 45) * (r() < 0.5 ? -1 : 1); acc[j][i] += mg; acc[j][i + 1] += mg * 0.45; spikes.push({ j, i, mg: acc[j][i] }); }
+  if (r() < 0.1) { const k = 1 + Math.floor(r() * 2); for (let g = 0; g < k; g++) glitches.push({ j: Math.floor(r() * 3), i: Math.floor(r() * N), mg: (40 + r() * 80) * (r() < 0.5 ? -1 : 1) }); }
+  return { acc, events, spikes, glitches, fs, N };
+}
+function demoPreview(cap, live) {
+  const sim = demoSim(cap), r = mulberry32(hashStr(cap.id + ':p'));
+  const fs = 50, n = 1500, df = 50 / 256, nodes = [], dnodes = {};
+  NODES.forEach((nm, j) => {
+    const present = Object.prototype.hasOwnProperty.call(cap.nodes, nm);
+    if (!present) { nodes.push({ node: nm, ok: false, rms: null, peak: null, noise: null, n: 0, scale: null, coding: 'delta', wave: null, spec: null, spikes: [], glitches: [] }); dnodes[nm] = { ok: false, n: 0, wave: null, spec: null, spikes: [], glitches: [] }; return; }
+    const bad = cap.nodes[nm] == null;
+    const w = new Float32Array(n), src = sim.acc[j];
+    for (let i = 0; i < n; i++) w[i] = (src[4 * i] + src[4 * i + 1] + src[4 * i + 2] + src[4 * i + 3]) / 4;
+    const spikes = sim.spikes.filter(s => s.j === j).map(s => { const i = Math.floor(s.i / 4); w[i] = s.mg; return [+(i / fs).toFixed(2), +s.mg.toFixed(1)]; });
+    let glitches = sim.glitches.filter(g => g.j === j).map(g => [+(Math.floor(g.i / 4) / fs).toFixed(2), +g.mg.toFixed(1)]);
+    if (bad) {
+      const st = Math.floor(r() * 900), len = 300 + Math.floor(r() * 300), v = 10 + r() * 20;
+      for (let i = st; i < Math.min(n, st + len); i++) w[i] = v;
+      for (let g = 0; g < 6; g++) glitches.push([+(r() * 30).toFixed(2), +((60 + r() * 200) * (r() < 0.5 ? -1 : 1)).toFixed(1)]);
+      glitches.sort((a, b) => a[0] - b[0]);
+    }
+    const ws = waveStats(w);
+    let dd = 0; for (let i = 1; i < n; i++) dd += (w[i] - w[i - 1]) ** 2;
+    const noise = Math.sqrt(dd / (n - 1) / 2);
+    const W = welch(w, fs, 5.12);
+    const specInt = Array.from(W.psd, p => Math.round(100 * Math.log10(Math.max(p, 1e-12))));
+    nodes.push({ node: nm, ok: !bad, rms: +ws.rms.toFixed(3), peak: +ws.peak.toFixed(2), noise: +noise.toFixed(3), n, scale: 0.01, coding: 'delta', wave: null, spec: specInt, spikes, glitches });
+    dnodes[nm] = { ok: !bad, n, wave: w, spec: Float32Array.from(specInt, v => v / 10), rms: ws.rms, peak: ws.peak, peakT: ws.peakI / fs, noise, spikes, glitches };
+  });
+  const events = sim.events.map(e => [+e.s.toFixed(2), +e.e.toFixed(2)]);
+  const p = { site: S.site, id: cap.id, ts: cap.ts, state: cap.state, mode: cap.mode, q: cap.q, ratio: cap.ratio, why: cap.why, fs, src_fs: 200, dur: 30, df, events, live: !!live, nodes };
+  p._dec = { fs, dur: 30, df, events, nodes: dnodes };
+  return p;
+}
+function demoHB(ts) {
+  const r = mulberry32(hashStr('hb' + Math.floor(ts)));
+  const silent = DEMO.silent && ts >= DEMO.silent[0] && ts < DEMO.silent[1];
+  return {
+    uptime_s: Math.round(ts - DEMO.boot), cpu_temp_c: +(47 + (demoTemp(ts) - 15) * 0.6 + r() * 2).toFixed(1),
+    disk_free_gb: +(23.4 - (ts - DEMO.start) / 86400 * 0.12).toFixed(2), backlog: 0,
+    modem: { signal_pct: Math.round(clamp(66 + gauss(r) * 6, 5, 100)), tech: '4G', operator: 'Jio' },
+    nodes: NODES.map(n => ({ node_id: n, age_s: silent && n === 'n3' ? Math.round(ts - DEMO.silent[0]) : Math.round(2 + r() * 25) })),
+    faults: silent ? ['node n3 silent'] : [], live_until: DEMO.liveUntil > ts ? DEMO.liveUntil : null,
+  };
+}
+function demoGenerateHistory() {
+  const step = 300, end = Math.floor(nowS() / step) * step - step, start = end - 7 * 86400;
+  DEMO.start = start; DEMO.boot = start - 5 * 3600; DEMO.learnEnd = start + 12 * 3600;
+  const sStart = start + Math.round(4.4 * 86400 / step) * step; DEMO.silent = [sStart, sStart + 7200];
+  const modem = start + Math.round(2.6 * 86400 / step) * step;
+  const caps = [];
+  for (let ts = start; ts <= end; ts += step) {
+    if (ts === sStart) addEvent({ type: 'fault', what: 'node n3 silent', ts });
+    if (ts === sStart + 7200) addEvent({ type: 'recovered', what: 'node n3 reporting again', ts });
+    if (ts === modem) addEvent({ type: 'fault', what: '4G connection lost, captures kept for later', ts });
+    if (ts === modem + 1500) addEvent({ type: 'recovered', what: '4G connection back, backlog sent', ts });
+    caps.push(demoCapture(ts));
+    if ((ts - start) % 900 === 0) addHeartbeat(demoHB(ts), ts);
+  }
+  addCapturesBulk(caps);
+  for (const c of caps.slice(-80)) addPreview(demoPreview(c, false), true);
+  S.piState = { state: DEMO.state, since: DEMO.since || start, why: DEMO.state === 'NORMAL' ? '' : DEMO.overWhy };
+  S.online = '1'; S.onlineTs = start;
+}
+function demoTick() {
+  if (!DEMO.on) return;
+  const ts = nowS(), live = DEMO.liveUntil > ts;
+  const cap = demoCapture(ts);
+  addCapture(cap);
+  addPreview(demoPreview(cap, live));
+  if (S.prevs.size > 300) { const old = prevList().slice(0, S.prevs.size - 300); for (const p of old) if (p.id !== R.id && p.id !== VIB.id) S.prevs.delete(p.id); S.ver++; }
+  S.piState = { state: DEMO.state, since: DEMO.since, why: DEMO.state === 'NORMAL' ? '' : DEMO.overWhy };
+  if (++DEMO.tick % 15 === 0) addHeartbeat(demoHB(ts), ts);
+  if (DEMO.liveUntil && !live) { DEMO.liveUntil = 0; S.liveUntil = null; toast('Live view ended.'); }
+  scheduleRender();
+}
+function demoCommand(msg) {
+  const reply = (o, delay = 700) => setTimeout(() => { if (DEMO.on) onCmdReply({ cmd: msg.cmd, ...o }); }, delay);
+  switch (msg.cmd) {
+    case 'ping': reply({ ok: true, detail: 'pong from the demo base station' }); break;
+    case 'status': reply({ ok: true, detail: 'heartbeat sent' }); setTimeout(() => { if (DEMO.on) { addHeartbeat(demoHB(nowS()), nowS()); scheduleRender(true); } }, 900); break;
+    case 'sms_test': reply({ ok: true, detail: 'test SMS queued for 2 numbers (demo: nothing is really sent)' }); break;
+    case 'set_mode': DEMO.mode = msg.mode === 'collect' ? 'collect' : 'monitor'; reply({ ok: true, detail: 'mode is now ' + DEMO.mode }); break;
+    case 'send_raw': {
+      const c = S.capById.get(String(msg.capture_id));
+      if (!c) { reply({ ok: false, error: 'no capture with ID ' + msg.capture_id }); break; }
+      reply({ ok: true, detail: 'sending raw/' + c.id });
+      setTimeout(async () => { if (!DEMO.on) return; try { openRawBytes(await demoRawNpz(c), 'raw/' + c.id, true); } catch (e) { toast('Demo raw file failed: ' + e.message); } }, 1600);
+      break;
+    }
+    case 'live_view': { const m = clamp(Math.round(+msg.minutes || 10), 1, 30); DEMO.liveUntil = nowS() + m * 60; reply({ ok: true, detail: `live view on for ${m} min`, live_until: DEMO.liveUntil }); break; }
+    case 'live_stop': DEMO.liveUntil = 0; reply({ ok: true, detail: 'live view stopped', live_until: null }); break;
+    default: reply({ ok: false, error: 'unknown command' });
+  }
+}
+/* builds a real .npz (zip of .npy files, deflate) so the demo exercises the same reader as real files */
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function npyBytes(descr, shape, data) {
+  const shp = shape.length === 0 ? '()' : shape.length === 1 ? `(${shape[0]},)` : `(${shape.join(', ')})`;
+  let h = `{'descr': '${descr}', 'fortran_order': False, 'shape': ${shp}, }`;
+  h += ' '.repeat((64 - (10 + h.length + 1) % 64) % 64) + '\n';
+  const out = new Uint8Array(10 + h.length + data.length);
+  out.set([0x93, 78, 85, 77, 80, 89, 1, 0]); out[8] = h.length & 255; out[9] = h.length >> 8;
+  for (let i = 0; i < h.length; i++) out[10 + i] = h.charCodeAt(i);
+  out.set(data, 10 + h.length);
+  return out;
+}
+function utf32(strs, width) { const b = new Uint8Array(strs.length * width * 4), dv = new DataView(b.buffer); strs.forEach((s, i) => { [...s].slice(0, width).forEach((ch, j) => dv.setUint32((i * width + j) * 4, ch.codePointAt(0), true)); }); return b; }
+function f8(v) { const b = new Uint8Array(8); new DataView(b.buffer).setFloat64(0, v, true); return b; }
+async function zipFiles(files) {
+  const parts = [], cd = [], enc = new TextEncoder();
+  let off = 0;
+  for (const f of files) {
+    const comp = await deflate(f.bytes, 'deflate-raw'), crc = crc32(f.bytes), name = enc.encode(f.name);
+    const lh = new Uint8Array(30 + name.length), dv = new DataView(lh.buffer);
+    dv.setUint32(0, 0x04034b50, true); dv.setUint16(4, 20, true); dv.setUint16(8, 8, true); dv.setUint16(12, 0x21, true);
+    dv.setUint32(14, crc, true); dv.setUint32(18, comp.length, true); dv.setUint32(22, f.bytes.length, true); dv.setUint16(26, name.length, true);
+    lh.set(name, 30);
+    cd.push({ name, crc, cs: comp.length, us: f.bytes.length, off });
+    parts.push(lh, comp); off += lh.length + comp.length;
+  }
+  const cdStart = off;
+  for (const e of cd) {
+    const h = new Uint8Array(46 + e.name.length), dv = new DataView(h.buffer);
+    dv.setUint32(0, 0x02014b50, true); dv.setUint16(4, 20, true); dv.setUint16(6, 20, true); dv.setUint16(10, 8, true); dv.setUint16(14, 0x21, true);
+    dv.setUint32(16, e.crc, true); dv.setUint32(20, e.cs, true); dv.setUint32(24, e.us, true); dv.setUint16(28, e.name.length, true); dv.setUint32(42, e.off, true);
+    h.set(e.name, 46); parts.push(h); off += h.length;
+  }
+  const end = new Uint8Array(22), dv = new DataView(end.buffer);
+  dv.setUint32(0, 0x06054b50, true); dv.setUint16(8, cd.length, true); dv.setUint16(10, cd.length, true); dv.setUint32(12, off - cdStart, true); dv.setUint32(16, cdStart, true);
+  parts.push(end);
+  const out = new Uint8Array(off + 22); let p = 0; for (const x of parts) { out.set(x, p); p += x.length; }
+  return out;
+}
+async function demoRawNpz(cap) {
+  const sim = demoSim(cap), N = sim.N, r = mulberry32(hashStr(cap.id + ':raw')), names = [];
+  const x = new Float32Array(9 * N);
+  NODES.forEach((n, j) => ['x', 'y', 'z'].forEach((a, ai) => {
+    names.push(n + a);
+    const row = (j * 3 + ai) * N, present = Object.prototype.hasOwnProperty.call(cap.nodes, n);
+    for (let i = 0; i < N; i++) {
+      const v = !present ? 0 : a === 'z' ? sim.acc[j][i] : sim.acc[j][i] * (a === 'x' ? 0.12 : 0.3) + gauss(r) * 0.35;
+      x[row + i] = ((a === 'z' ? 1000 : 0) + v) / 1000;
+    }
+  }));
+  for (const g of sim.glitches) x[(g.j * 3 + 2) * N + g.i] = (1000 + g.mg) / 1000;
+  return zipFiles([
+    { name: 'x.npy', bytes: npyBytes('<f4', [9, N], new Uint8Array(x.buffer)) },
+    { name: 'channel_names.npy', bytes: npyBytes('<U3', [9], utf32(names, 3)) },
+    { name: 'fs.npy', bytes: npyBytes('<f8', [], f8(200)) },
+    { name: 'ts.npy', bytes: npyBytes('<f8', [], f8(cap.ts)) },
+    { name: 'capture_id.npy', bytes: npyBytes(`<U${cap.id.length}`, [], utf32([cap.id], cap.id.length)) },
+  ]);
+}
+function startDemo() {
+  if (DEMO.on) return;
+  mqttDisconnect(true); setConn('idle', '');
+  resetData();
+  Object.assign(DEMO, { on: true, damage: 0, mode: 'monitor', liveUntil: 0, ratios: [], state: 'NORMAL', since: 0, overWhy: '', tick: 0 });
+  demoGenerateHistory();
+  DEMO.timer = setInterval(demoTick, 4000);
+  updateDemoUI(); renderHeader(); scheduleRender(true);
+}
+function stopDemo() {
+  if (!DEMO.on) return;
+  clearInterval(DEMO.timer); DEMO.on = false; DEMO.damage = 0;
+  resetData(); updateDemoUI(); renderHeader(); scheduleRender(true);
+}
+function toggleDamage() {
+  if (!DEMO.on) { startDemo(); }
+  DEMO.damage = DEMO.damage ? 0 : 0.06;
+  updateDemoUI();
+  toast(DEMO.damage ? 'Stiffness reduced by 6 %. An alarm needs 3 of the next 5 captures above 1.0, about 12 seconds here.' : 'Stiffness restored. The alarm clears once the last 5 captures are back under 1.0.', 6000);
+  location.hash = '#overview';
+}
+function updateDemoUI() {
+  const lab = DEMO.damage ? 'Restore stiffness' : 'Simulate 6% stiffness loss';
+  $('#dmg-btn').textContent = lab; $('#demo-dmg2').textContent = lab;
+  $('#demo-toggle').textContent = DEMO.on ? 'Stop demo' : 'Start demo';
+  $('#demo-bar').hidden = !DEMO.on;
+  $$('[data-token]').forEach(i => { i.placeholder = DEMO.on ? 'Any text works in the demo' : 'Needed to send commands'; });
+}
+
+/* ================= connect page, header ================= */
+function renderHeader() {
+  $('#site-name').textContent = 'Site ' + S.site;
+  let cls = '', txt = 'Not connected';
+  if (DEMO.on) { cls = 'demo'; txt = 'Demo'; }
+  else if (MQ.connected) { cls = 'live'; txt = 'Live'; }
+  else if (MQ.status === 'connecting') { cls = 'busy'; txt = 'Connecting'; }
+  else if (MQ.status === 'reconnecting') { cls = 'busy'; txt = 'Reconnecting'; }
+  else if (S.file) { txt = 'History file'; }
+  else if (MQ.status === 'error') { cls = 'err'; }
+  $('#conn-pill').className = 'pill ' + cls;
+  $('#conn-text').textContent = txt;
+  $('#demo-bar').hidden = !DEMO.on;
+}
+function renderConnMsg() {
+  const el = $('#conn-msg');
+  el.innerHTML = MQ.msg ? `<div class="notice ${MQ.cls}">${esc(MQ.msg)}</div>` : '';
+  $('#f-disconnect').disabled = !MQ.client;
+  const busy = MQ.status === 'connecting';
+  $('#f-connect').disabled = busy;
+  $('#f-connect').textContent = busy ? 'Connecting…' : MQ.client ? 'Reconnect' : 'Connect';
+}
+function renderConnect() { renderConnMsg(); updateDemoUI(); }
+function readForm() {
+  return { addr: $('#f-addr').value.trim(), user: $('#f-user').value.trim(), pass: $('#f-pass').value, site: $('#f-site').value.trim() || 'bridge01' };
+}
+function updateAddrHelp() {
+  const v = $('#f-addr').value, nb = normalizeBroker(v), help = $('#f-addr-help');
+  if (!v.trim()) { help.textContent = 'Paste the address from the EMQX console. It becomes wss://address:8084/mqtt.'; return; }
+  if (/(\.emqxsl\.com){2,}/i.test(v)) { $('#f-addr').value = v.replace(/(\.emqxsl\.com)+/gi, '.emqxsl.com'); }
+  help.textContent = nb ? 'Will connect to ' + nb.url : 'This does not look like an address yet.';
+}
+
+/* ================= router, rendering, init ================= */
+const PAGES = { overview: renderOverview, vibration: renderVibration, trends: renderTrends, events: renderEvents, system: renderSystem, connect: renderConnect };
+function currentPage() { const h = (location.hash || '').slice(1).split('/')[0]; return PAGES[h] ? h : 'overview'; }
+let rq = false, rqForce = false, lastR = 0;
+function scheduleRender(force) {
+  if (force) rqForce = true;
+  if (rq) return;
+  rq = true;
+  setTimeout(() => requestAnimationFrame(() => { rq = false; const f = rqForce; rqForce = false; lastR = performance.now(); renderAll(f); }), Math.max(0, 200 - (performance.now() - lastR)));
+}
+function renderAll(force) {
+  renderHeader();
+  try { PAGES[currentPage()](force); } catch (e) { console.error(e); }
+}
+let lastPage = null;
+function route() {
+  const parts = (location.hash || '#overview').slice(1).split('/');
+  const pg = PAGES[parts[0]] ? parts[0] : 'overview';
+  $$('.page').forEach(s => { s.hidden = s.dataset.page !== pg; });
+  $$('.tabs a').forEach(a => { if (a.dataset.page === pg) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  if (pg === 'vibration' && parts[1]) { VIB.id = decodeURIComponent(parts.slice(1).join('/')); VIB.follow = false; }
+  if (pg !== 'overview') stopLoop();
+  VIB.key = ''; TR.key = '';
+  if (lastPage && lastPage !== pg) { window.scrollTo(0, 0); const h = $(`#page-${pg} h2`); $('#main').focus({ preventScroll: true }); if (h) $('#main').setAttribute('aria-label', h.textContent); }
+  lastPage = pg;
+  const cur = $(`.tabs a[data-page="${pg}"]`); if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  renderAll(true);
+  if (pg === 'vibration') renderRaw();
+}
+function effTheme() { const t = document.documentElement.dataset.theme; return t || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+function setThemeIcon() { const d = effTheme() === 'dark', b = $('#theme-btn'); b.innerHTML = d ? ICON.sun : ICON.moon; b.setAttribute('aria-label', d ? 'Switch to light mode' : 'Switch to dark mode'); }
+function wireUI() {
+  $('#theme-btn').addEventListener('click', () => { const next = effTheme() === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = next; lsSet('shm-theme', next); setThemeIcon(); });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', setThemeIcon);
+  $('#dmg-btn').addEventListener('click', toggleDamage);
+  $('#demo-dmg2').addEventListener('click', toggleDamage);
+  $('#demo-toggle').addEventListener('click', () => { if (DEMO.on) stopDemo(); else { startDemo(); location.hash = '#overview'; } });
+  // vibration
+  $('#vib-select').addEventListener('change', e => { if (e.target.value) setVibId(e.target.value, false); });
+  $('#vib-prev').addEventListener('click', () => { const pl = prevList(), i = pl.findIndex(p => p.id === VIB.id); const t = i > 0 ? pl[i - 1] : (i < 0 ? pl[pl.length - 1] : null); if (t) setVibId(t.id, false); });
+  $('#vib-next').addEventListener('click', () => { const pl = prevList(), i = pl.findIndex(p => p.id === VIB.id); if (i >= 0 && i < pl.length - 1) setVibId(pl[i + 1].id, false); });
+  $('#vib-follow').addEventListener('change', e => { VIB.follow = e.target.checked; if (VIB.follow) { try { history.replaceState(null, '', '#vibration'); } catch (er) { } } renderVibration(true); });
+  $$('#spec-mode button').forEach(b => b.addEventListener('click', () => { VIB.spec = b.dataset.v; $$('#spec-mode button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderVibration(true); }));
+  $('#live-btn').addEventListener('click', () => { if (sendCmd('live_view', { minutes: 10 })) { VIB.follow = true; $('#vib-follow').checked = true; } });
+  $('#live-stop').addEventListener('click', () => sendCmd('live_stop'));
+  $('#req-raw').addEventListener('click', () => { if (!VIB.id) { toast('No capture selected.'); return; } sendCmd('send_raw', { capture_id: VIB.id }); });
+  $('#npz-file').addEventListener('change', async e => { const f = e.target.files[0]; if (f) await openRawBytes(new Uint8Array(await f.arrayBuffer()), f.name, false); e.target.value = ''; });
+  $('#raw-select').addEventListener('change', e => { RAW.cur = e.target.value; renderRaw(); });
+  $$('#raw-axis button').forEach(b => b.addEventListener('click', () => { RAW.axis = b.dataset.v; renderRaw(); }));
+  // trends, events
+  $$('#tr-range button').forEach(b => b.addEventListener('click', () => { TR.range = b.dataset.v; TR.rows = 100; renderTrends(true); }));
+  $('#tr-more').addEventListener('click', () => { TR.rows += 200; renderTrends(true); });
+  $$('#ev-filter button').forEach(b => b.addEventListener('click', () => { EV.filter = b.dataset.v; renderEvents(); }));
+  // commands
+  $$('[data-token]').forEach(i => i.addEventListener('input', () => { TOKEN = i.value; $$('[data-token]').forEach(o => { if (o !== i) o.value = i.value; }); }));
+  $$('[data-cmd]').forEach(b => b.addEventListener('click', () => {
+    const c = b.dataset.cmd, extra = {};
+    if (c === 'set_mode') extra.mode = $('#cmd-mode').value;
+    if (c === 'send_raw') { const id = $('#cmd-raw-id').value.trim() || VIB.id; if (!id) { toast('Enter a capture ID first.'); return; } extra.capture_id = id; }
+    if (c === 'live_view') extra.minutes = clamp(Math.round(+$('#cmd-live-min').value || 10), 1, 30);
+    sendCmd(c, extra);
+  }));
+  // connect
+  $('#conn-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const cfg = readForm();
+    if ($('#f-remember').checked) lsSet('shm-dash-conn', JSON.stringify(cfg)); else lsSet('shm-dash-conn', null);
+    mqttConnect(cfg);
+  });
+  $('#f-addr').addEventListener('input', updateAddrHelp);
+  $('#f-addr').addEventListener('blur', updateAddrHelp);
+  $('#f-disconnect').addEventListener('click', () => { mqttDisconnect(false); scheduleRender(true); });
+  $('#f-forget').addEventListener('click', () => { lsSet('shm-dash-conn', null); $('#f-remember').checked = false; toast('Saved connection details removed from this device.'); });
+  $('#f-pass-show').addEventListener('click', e => { const p = $('#f-pass'), show = p.type === 'password'; p.type = show ? 'text' : 'password'; e.target.textContent = show ? 'Hide' : 'Show'; e.target.setAttribute('aria-pressed', show); });
+  $('#f-sqlite').addEventListener('change', e => { const f = e.target.files[0]; if (f) openSqlite(f); e.target.value = ''; });
+  const drop = $('#drop');
+  ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, () => drop.classList.remove('over')));
+  drop.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) openSqlite(f); });
+  // global
+  window.addEventListener('hashchange', route);
+  let rt = 0;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { VIB.key = ''; TR.key = ''; renderAll(true); if (currentPage() === 'vibration') renderRaw(); }, 200); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && currentPage() === 'overview' && R.playing) startLoop(); });
+  RM.addEventListener?.('change', () => { if (RM.matches) { R.playing = false; setPlayIcon(); } });
+}
+function init() {
+  const th = lsGet('shm-theme'); if (th === 'dark' || th === 'light') document.documentElement.dataset.theme = th;
+  setThemeIcon();
+  setupBridge(); wireUI();
+  if (inArtifactViewer()) $('#artifact-note').hidden = false;
+  const saved = safeJSON(lsGet('shm-dash-conn'));
+  if (saved && typeof saved === 'object') {
+    $('#f-addr').value = saved.addr || ''; $('#f-user').value = saved.user || ''; $('#f-pass').value = saved.pass || ''; $('#f-site').value = saved.site || 'bridge01';
+    $('#f-remember').checked = true; S.site = saved.site || 'bridge01'; updateAddrHelp();
+  }
+  route();
+  if (saved && saved.addr && saved.user) mqttConnect(saved);
+  else startDemo();
+  setInterval(() => { if (currentPage() === 'vibration') renderLiveState(); }, 1000);
+  setInterval(() => scheduleRender(), 20000);
+}
+init();
+</script>
+</body>
+</html>
