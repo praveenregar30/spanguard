@@ -1,6 +1,6 @@
 
 /* ================= overview: bridge replay ================= */
-const BX0 = 80, BSPAN = 840, BY = 190, DECK_T = 10, EXAG = 24;
+const BX0 = 80, BSPAN = 840, BY = 190, DECK_T = 10, EXAG = 12;
 function inv3(m) {
   const [a, b, c] = m[0], [d, e, f] = m[1], [g, h, i] = m[2];
   const A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g, det = a * A + b * B + c * C;
@@ -100,13 +100,13 @@ function step(ts) {
   if (R.playing) R.raf = requestAnimationFrame(step);
 }
 function frame(t) {
-  const d = R.dec, y = [0, 0, 0], EXAG = window.innerWidth < 640 ? 42 : 24;
+  const d = R.dec, y = [0, 0, 0], EXAG = window.innerWidth < 640 ? 20 : 12;
   if (d) {
     const fi = t * d.fs;
     NODES.forEach((n, j) => {
       const w = d.nodes[n]?.wave; if (!w || !w.length) return;
       const i0 = clamp(Math.floor(fi), 0, w.length - 1), i1 = Math.min(w.length - 1, i0 + 1), fr = clamp(fi - i0, 0, 1);
-      y[j] = clamp((w[i0] * (1 - fr) + w[i1] * fr) / R.amp * EXAG, -EXAG * 1.5, EXAG * 1.5);
+      y[j] = clamp((w[i0] * (1 - fr) + w[i1] * fr) / R.amp * EXAG, -EXAG * 1.2, EXAG * 1.2);
     });
   }
   const a = [0, 1, 2].map(r => MINV[r][0] * y[0] + MINV[r][1] * y[1] + MINV[r][2] * y[2]);

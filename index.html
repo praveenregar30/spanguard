@@ -466,7 +466,7 @@ footer.foot{color:var(--ink3);font-size:13.5px;padding-bottom:28px}
         <path class="hill-near" d="M0 210C110 176 210 196 320 184C440 170 540 204 660 186C770 170 880 190 1000 176V262H0Z"/>
         <g class="dim" aria-hidden="true">
           <path d="M80 128v-10M290 128v-6M500 128v-6M710 128v-6M920 128v-10M80 123H920"/>
-          <text x="290" y="114">¼</text><text x="500" y="114">½ span</text><text x="710" y="114">¾</text>
+          <text x="290" y="114">Â¼</text><text x="500" y="114">Â½ span</text><text x="710" y="114">Â¾</text>
         </g>
         <rect class="water" x="0" y="262" width="1000" height="68"/>
         <g clip-path="url(#water-clip)">
@@ -708,16 +708,16 @@ function median(arr) {
   const m = b.length >> 1;
   return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2;
 }
-const MINUS = '−';
-function fmt(v, d = 2) { return fin(v) ? (v < 0 ? MINUS : '') + Math.abs(v).toFixed(d) : '–'; }
+const MINUS = 'âˆ’';
+function fmt(v, d = 2) { return fin(v) ? (v < 0 ? MINUS : '') + Math.abs(v).toFixed(d) : 'â€“'; }
 function fmtPct(v, d = 1) {
-  if (!fin(v)) return '–';
+  if (!fin(v)) return 'â€“';
   const r = +v.toFixed(d);
   if (r === 0) return (0).toFixed(d) + ' %';
   return (r > 0 ? '+' : MINUS) + Math.abs(r).toFixed(d) + ' %';
 }
 function fmtDur(sec) {
-  if (!fin(sec)) return '–';
+  if (!fin(sec)) return 'â€“';
   sec = Math.max(0, sec);
   if (sec < 60) return Math.round(sec) + ' s';
   const m = Math.floor(sec / 60);
@@ -736,7 +736,7 @@ function fmtAgo(ts, ref) {
 function fmtClock(ts, secs) { return new Date(ts * 1000).toLocaleTimeString([], secs ? { hour: '2-digit', minute: '2-digit', second: '2-digit' } : { hour: '2-digit', minute: '2-digit' }); }
 function fmtDay(ts) { return new Date(ts * 1000).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }); }
 function fmtDT(ts) {
-  if (!fin(ts)) return '–';
+  if (!fin(ts)) return 'â€“';
   const d = new Date(ts * 1000), n = new Date();
   if (d.toDateString() === n.toDateString()) return 'today ' + fmtClock(ts);
   return fmtDay(ts) + ', ' + fmtClock(ts);
@@ -782,7 +782,7 @@ function humanWhy(why) {
       .replace(/\brms_n(\d)\b/g, 'vibration level at node $1')
       .replace(/\bdamp_m(\d)\b/g, 'mode $1 damping')
       .replace(/\b(n\d)_(\w+)/g, '$1 $2')
-      .replace(/\(\s*([+\-−]?)(\d+(?:\.\d+)?)\s*sd\s*\)/g, (m, s, n) => `(${n}× the usual spread)`);
+      .replace(/\(\s*([+\-âˆ’]?)(\d+(?:\.\d+)?)\s*sd\s*\)/g, (m, s, n) => `(${n}Ã— the usual spread)`);
     return p.charAt(0).toUpperCase() + p.slice(1);
   }).join('. ') + '.';
 }
@@ -1205,7 +1205,7 @@ const ICON = {
 };
 
 /* ================= overview: bridge replay ================= */
-const BX0 = 80, BSPAN = 840, BY = 190, DECK_T = 10, EXAG = 24;
+const BX0 = 80, BSPAN = 840, BY = 190, DECK_T = 10, EXAG = 12;
 function inv3(m) {
   const [a, b, c] = m[0], [d, e, f] = m[1], [g, h, i] = m[2];
   const A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g, det = a * A + b * B + c * C;
@@ -1305,13 +1305,13 @@ function step(ts) {
   if (R.playing) R.raf = requestAnimationFrame(step);
 }
 function frame(t) {
-  const d = R.dec, y = [0, 0, 0], EXAG = window.innerWidth < 640 ? 42 : 24;
+  const d = R.dec, y = [0, 0, 0], EXAG = window.innerWidth < 640 ? 20 : 12;
   if (d) {
     const fi = t * d.fs;
     NODES.forEach((n, j) => {
       const w = d.nodes[n]?.wave; if (!w || !w.length) return;
       const i0 = clamp(Math.floor(fi), 0, w.length - 1), i1 = Math.min(w.length - 1, i0 + 1), fr = clamp(fi - i0, 0, 1);
-      y[j] = clamp((w[i0] * (1 - fr) + w[i1] * fr) / R.amp * EXAG, -EXAG * 1.5, EXAG * 1.5);
+      y[j] = clamp((w[i0] * (1 - fr) + w[i1] * fr) / R.amp * EXAG, -EXAG * 1.2, EXAG * 1.2);
     });
   }
   const a = [0, 1, 2].map(r => MINV[r][0] * y[0] + MINV[r][1] * y[1] + MINV[r][2] * y[2]);
@@ -1410,14 +1410,14 @@ function renderNodeInfo() {
   if (!n) { box.innerHTML = '<p class="hint" style="margin:0">Select a node on the bridge (or its trace label) to see its readings.</p>'; return; }
   const nd = R.dec?.nodes[n], st = R.nst[n] || { cls: '', text: 'no data' };
   const spikes = nd ? nd.spikes.length : 0, bad = nd ? nd.glitches.length : 0;
-  let pk = '–';
+  let pk = 'â€“';
   if (nd && fin(nd.peak)) { pk = fmt(nd.peak, 1) + ' mg'; if (fin(nd.peakT)) pk += ` <small class="c-mute">at ${fmt(nd.peakT, 1)} s</small>`; }
   box.innerHTML = `<div class="ni-head"><b>Node ${n.slice(1)}</b><span class="sub" style="margin:0">at ${NODE_PLACE[n]}</span><span class="badge ${st.cls}">${esc(st.text)}</span>${nd && nd.ok === false ? '<span class="badge warn">bad data in this capture</span>' : ''}</div>
   <dl class="ni">
-    <div><dt>Vibration level (rms)</dt><dd>${nd && fin(nd.rms) ? fmt(nd.rms, 2) + ' mg' : '–'}</dd></div>
+    <div><dt>Vibration level (rms)</dt><dd>${nd && fin(nd.rms) ? fmt(nd.rms, 2) + ' mg' : 'â€“'}</dd></div>
     <div><dt>Largest peak</dt><dd>${pk}</dd></div>
-    <div><dt>Spikes</dt><dd>${nd ? spikes : '–'}</dd></div>
-    <div><dt>Bad reads</dt><dd>${nd ? bad : '–'}</dd></div>
+    <div><dt>Spikes</dt><dd>${nd ? spikes : 'â€“'}</dd></div>
+    <div><dt>Bad reads</dt><dd>${nd ? bad : 'â€“'}</dd></div>
     <div><dt>Last reported</dt><dd>${esc(fmtAgo(st.heard, nowRef()))}</dd></div>
   </dl>`;
 }
@@ -1483,10 +1483,10 @@ function renderStrip() {
   const last = lastCap(), bl = baseline(), hb = lastHb(), now = nowRef();
   const ratio = last?.ratio;
   const gcol = !fin(ratio) ? 'var(--ink3)' : ratio >= 1 ? 'var(--bad)' : ratio >= 0.8 ? 'var(--warn)' : 'var(--ok)';
-  const i1 = `<div class="inst"><div class="lab">Anomaly score</div><div class="gauge-row">${gaugeSVG(ratio, gcol)}<div><div class="big" style="color:${fin(ratio) && ratio >= 1 ? 'var(--bad)' : 'inherit'}">${fin(ratio) ? fmt(ratio, 2) : '–'}</div><div class="note">${last && last.mode === 'collect' ? 'not scored while learning' : 'alarm level is 1.0'}</div></div></div></div>`;
+  const i1 = `<div class="inst"><div class="lab">Anomaly score</div><div class="gauge-row">${gaugeSVG(ratio, gcol)}<div><div class="big" style="color:${fin(ratio) && ratio >= 1 ? 'var(--bad)' : 'inherit'}">${fin(ratio) ? fmt(ratio, 2) : 'â€“'}</div><div class="note">${last && last.mode === 'collect' ? 'not scored while learning' : 'alarm level is 1.0'}</div></div></div></div>`;
   const rows = [0, 1, 2].map(i => {
     const f = Array.isArray(last?.freq) ? +last.freq[i] : NaN, pc = freqPct(last, i, bl);
-    return `<span class="m">Mode ${i + 1}</span><span class="v">${fin(f) ? fmt(f, 2) : '–'} <small class="c-mute" style="font-size:14px">Hz</small></span><span class="d${pc != null && pc < -3 ? ' low' : ''}">${pc == null ? '' : fmtPct(pc)}</span>`;
+    return `<span class="m">Mode ${i + 1}</span><span class="v">${fin(f) ? fmt(f, 2) : 'â€“'} <small class="c-mute" style="font-size:14px">Hz</small></span><span class="d${pc != null && pc < -3 ? ' low' : ''}">${pc == null ? '' : fmtPct(pc)}</span>`;
   }).join('');
   const i2 = `<div class="inst"><div class="lab">Natural frequencies</div><div class="freqs">${rows}</div><div class="note">${bl ? `change from healthy (median of the first ${bl.n} normal captures)` : 'healthy baseline needs 5 good normal captures'}</div></div>`;
   const midnight = new Date(now * 1000); midnight.setHours(0, 0, 0, 0);
@@ -1494,7 +1494,7 @@ function renderStrip() {
   let tmin = Infinity, tmax = -Infinity;
   for (let i = S.caps.length - 1; i >= 0 && S.caps[i].ts >= t0; i--) { const v = +S.caps[i].temp; if (fin(v)) { tmin = Math.min(tmin, v); tmax = Math.max(tmax, v); } }
   const temp = +last?.temp;
-  const i3 = `<div class="inst"><div class="lab">Deck temperature</div><div class="big">${fin(temp) ? fmt(temp, 1) : '–'}<small>°C</small></div><div class="note">${fin(tmin) ? `today ${fmt(tmin, 1)} to ${fmt(tmax, 1)} °C` : 'no readings today'}</div></div>`;
+  const i3 = `<div class="inst"><div class="lab">Deck temperature</div><div class="big">${fin(temp) ? fmt(temp, 1) : 'â€“'}<small>Â°C</small></div><div class="note">${fin(tmin) ? `today ${fmt(tmin, 1)} to ${fmt(tmax, 1)} Â°C` : 'no readings today'}</div></div>`;
   let tot = 0, good = 0; const flags = {};
   for (let i = S.caps.length - 1; i >= 0 && S.caps[i].ts >= now - 86400; i--) {
     const c = S.caps[i]; tot++; if (c.q) good++;
@@ -1502,10 +1502,10 @@ function renderStrip() {
   }
   const top = Object.entries(flags).sort((a, b) => b[1] - a[1])[0];
   const gp = tot ? good / tot * 100 : null;
-  const i4 = `<div class="inst"><div class="lab">Good captures, 24 h</div><div class="big" style="color:${gp != null && gp < 80 ? 'var(--warn)' : 'inherit'}">${gp == null ? '–' : Math.floor(gp)}<small>%</small></div><div class="note">${!tot ? 'no captures in 24 h' : top ? `most common problem: ${esc(String(top[0]).replace(/_/g, ' '))} (${top[1]})` : `all ${tot} were clean`}</div></div>`;
+  const i4 = `<div class="inst"><div class="lab">Good captures, 24 h</div><div class="big" style="color:${gp != null && gp < 80 ? 'var(--warn)' : 'inherit'}">${gp == null ? 'â€“' : Math.floor(gp)}<small>%</small></div><div class="note">${!tot ? 'no captures in 24 h' : top ? `most common problem: ${esc(String(top[0]).replace(/_/g, ' '))} (${top[1]})` : `all ${tot} were clean`}</div></div>`;
   const mo = hb?.modem || {}, sig = +mo.signal_pct;
   const bars = [20, 40, 60, 80].map((t, k) => `<i class="${fin(sig) && sig >= t - 10 ? 'on' : ''}" style="height:${6 + k * 5}px"></i>`).join('');
-  const i5 = `<div class="inst"><div class="lab">Mobile signal</div><div class="big"><span class="sigbars" aria-hidden="true">${bars}</span>${fin(sig) ? Math.round(sig) : '–'}<small>%</small></div><div class="note">${hb ? esc([mo.tech, mo.operator].filter(Boolean).join(' with ') || 'network unknown') : 'no heartbeat yet'}</div></div>`;
+  const i5 = `<div class="inst"><div class="lab">Mobile signal</div><div class="big"><span class="sigbars" aria-hidden="true">${bars}</span>${fin(sig) ? Math.round(sig) : 'â€“'}<small>%</small></div><div class="note">${hb ? esc([mo.tech, mo.operator].filter(Boolean).join(' with ') || 'network unknown') : 'no heartbeat yet'}</div></div>`;
   $('#strip').innerHTML = i1 + i2 + i3 + i4 + i5;
 }
 function openCapture(id) { location.hash = '#vibration/' + encodeURIComponent(id); }
@@ -1608,9 +1608,9 @@ function vibSummaryHTML(id) {
   return `<div class="summary"><span class="badge ${STATE_CLS[state] || ''}">${STATE_WORD[state] || esc(state)}</span>
     <span class="kv">Time<b>${esc(fmtDT(src.ts))}</b></span>
     <span class="kv">Score<b>${fmt(src.ratio, 2)}</b></span>
-    <span class="kv">Vehicle crossings<b>${evs ?? '–'}</b></span>
-    <span class="kv">Spikes<b>${spikes ?? '–'}</b></span>
-    <span class="kv">Bad reads<b>${bad ?? '–'}</b></span>
+    <span class="kv">Vehicle crossings<b>${evs ?? 'â€“'}</b></span>
+    <span class="kv">Spikes<b>${spikes ?? 'â€“'}</b></span>
+    <span class="kv">Bad reads<b>${bad ?? 'â€“'}</b></span>
     ${src.q === false ? '<span class="badge warn">quality problem' + (Array.isArray(src.flags) && src.flags.length ? ': ' + esc(src.flags.join(', ').replace(/_/g, ' ')) : '') + '</span>' : ''}
     ${p?.live ? '<span class="badge info">live window</span>' : ''}${src.mode === 'collect' ? '<span class="badge info">learning</span>' : ''}</div>
     <p class="why-line">${why ? '<b>Reason.</b> ' + esc(why) : (state === 'NORMAL' ? 'Nothing unusual in this capture.' : '')} <span class="c-mute">Capture ${esc(id)}</span></p>`;
@@ -1688,7 +1688,7 @@ async function renderSpectrum(p, dec) {
     label: 'Vibration spectrum', series, vlines, xMin: 0, xMax: fmax, height: el.clientWidth < 500 ? 230 : 280,
     fmtY: v => fmt(v, 0), fmtX: v => v + (v === 0 ? ' Hz' : ''),
     tipTitle: x => fmt(x, 2) + ' Hz', fmtTip: v => fmt(v, 1) + ' dB',
-    tipExtra: () => '<div class="tx">dB of mg² per Hz</div>',
+    tipExtra: () => '<div class="tx">dB of mgÂ² per Hz</div>',
   });
 }
 function renderLiveState() {
@@ -1893,7 +1893,7 @@ function renderTrends(force) {
   lineChart($('#tr-temp'), {
     ...common, label: 'Deck temperature', empty: emptyMsg,
     series: [{ name: 'Deck temperature', pts: rows.map(r => [r.ts, r.temp]), color: 'var(--c2)' }],
-    fmtY: v => fmt(v, 0) + '°', fmtTip: v => fmt(v, 1) + ' °C',
+    fmtY: v => fmt(v, 0) + 'Â°', fmtTip: v => fmt(v, 1) + ' Â°C',
   });
   renderTrendTable(caps, bl);
 }
@@ -1902,8 +1902,8 @@ function renderTrendTable(caps, bl) {
   $('#tr-count').textContent = list.length ? `Newest first, ${shown.length} of ${list.length}` : '';
   const head = `<thead><tr><th>Time</th><th>Capture</th><th>State</th><th class="r">Score</th>${[1, 2, 3].map(i => `<th class="r">Mode ${i}</th>`).join('')}<th class="r">Temp</th><th>Quality</th></tr></thead>`;
   const body = shown.map(c => {
-    const f = [0, 1, 2].map(i => { const v = Array.isArray(c.freq) ? +c.freq[i] : NaN, pc = freqPct(c, i, bl); return fin(v) ? `${fmt(v, 2)}${pc != null ? ` <span class="${pc < -3 ? 'c-bad' : 'c-mute'}">${fmtPct(pc)}</span>` : ''}` : '–'; });
-    return `<tr><td>${esc(fmtDT(c.ts))}</td><td><a href="#vibration/${encodeURIComponent(c.id)}">${esc(c.id)}</a>${S.prevs.has(c.id) ? '' : ' <span class="c-mute" title="No waveform preview">(score only)</span>'}</td><td><span class="badge ${STATE_CLS[c.state] || ''}">${STATE_WORD[c.state] || esc(c.state || '')}</span></td><td class="r">${fmt(c.ratio, 2)}</td>${f.map(x => `<td class="r">${x}</td>`).join('')}<td class="r">${fin(+c.temp) ? fmt(+c.temp, 1) + ' °C' : '–'}</td><td>${c.q ? 'good' : `<span class="c-warn">${esc((c.flags || []).join(', ').replace(/_/g, ' ') || 'problem')}</span>`}</td></tr>`;
+    const f = [0, 1, 2].map(i => { const v = Array.isArray(c.freq) ? +c.freq[i] : NaN, pc = freqPct(c, i, bl); return fin(v) ? `${fmt(v, 2)}${pc != null ? ` <span class="${pc < -3 ? 'c-bad' : 'c-mute'}">${fmtPct(pc)}</span>` : ''}` : 'â€“'; });
+    return `<tr><td>${esc(fmtDT(c.ts))}</td><td><a href="#vibration/${encodeURIComponent(c.id)}">${esc(c.id)}</a>${S.prevs.has(c.id) ? '' : ' <span class="c-mute" title="No waveform preview">(score only)</span>'}</td><td><span class="badge ${STATE_CLS[c.state] || ''}">${STATE_WORD[c.state] || esc(c.state || '')}</span></td><td class="r">${fmt(c.ratio, 2)}</td>${f.map(x => `<td class="r">${x}</td>`).join('')}<td class="r">${fin(+c.temp) ? fmt(+c.temp, 1) + ' Â°C' : 'â€“'}</td><td>${c.q ? 'good' : `<span class="c-warn">${esc((c.flags || []).join(', ').replace(/_/g, ' ') || 'problem')}</span>`}</td></tr>`;
   }).join('');
   $('#tr-table').innerHTML = list.length ? head + '<tbody>' + body + '</tbody>' : '<tbody><tr><td style="padding:16px">No captures in this range.</td></tr></tbody>';
   $('#tr-more').hidden = list.length <= TR.rows;
@@ -1933,10 +1933,10 @@ function renderSystem() {
     const fact = (k, v, small) => `<div><dt>${k}</dt><dd>${v}${small ? ` <small>${small}</small>` : ''}</dd></div>`;
     $('#sys-facts').innerHTML = `<dl class="facts">
       ${fact('Running for', esc(fmtDur(+hb.uptime_s)))}
-      ${fact('Processor temperature', fin(+hb.cpu_temp_c) ? fmt(+hb.cpu_temp_c, 1) + ' °C' : '–', +hb.cpu_temp_c > 75 ? 'hot' : '')}
-      ${fact('Free disk space', fin(+hb.disk_free_gb) ? fmt(+hb.disk_free_gb, 1) + ' GB' : '–')}
-      ${fact('Waiting to send', fin(+hb.backlog) ? plural(+hb.backlog, 'message') : '–')}
-      ${fact('Mobile signal', fin(+mo.signal_pct) ? Math.round(+mo.signal_pct) + ' %' : '–', esc([mo.tech, mo.operator].filter(Boolean).join(' with ')))}
+      ${fact('Processor temperature', fin(+hb.cpu_temp_c) ? fmt(+hb.cpu_temp_c, 1) + ' Â°C' : 'â€“', +hb.cpu_temp_c > 75 ? 'hot' : '')}
+      ${fact('Free disk space', fin(+hb.disk_free_gb) ? fmt(+hb.disk_free_gb, 1) + ' GB' : 'â€“')}
+      ${fact('Waiting to send', fin(+hb.backlog) ? plural(+hb.backlog, 'message') : 'â€“')}
+      ${fact('Mobile signal', fin(+mo.signal_pct) ? Math.round(+mo.signal_pct) + ' %' : 'â€“', esc([mo.tech, mo.operator].filter(Boolean).join(' with ')))}
       ${fact('Live view', fin(lu) && lu > nowS() ? 'on' : 'off', fin(lu) && lu > nowS() ? 'until ' + fmtClock(lu) : '')}
     </dl>`;
   }
@@ -1946,7 +1946,7 @@ function renderSystem() {
     return `<div class="nrow"><span class="d" style="background:var(--${st[n].cls || 'ink3'})"></span><div><b>Node ${n.slice(1)}</b> <span class="t">${NODE_PLACE[n]}</span><div class="t">${e && fin(+e.age_s) ? `last packet ${fmtDur(+e.age_s)} before the heartbeat` : 'not in the latest heartbeat'}</div></div><span class="badge ${st[n].cls}">${esc(st[n].text)}</span></div>`;
   }).join('')}</div>`;
   const faults = hb && Array.isArray(hb.faults) ? hb.faults : [];
-  $('#sys-faults').innerHTML = !hb ? '<p class="hint">Faults are listed in each heartbeat.</p>' : faults.length ? `<ul class="timeline">${faults.map(f => `<li><span class="mk warn"></span><div class="what">${esc(String(f).replace(/_/g, ' '))}</div></li>`).join('')}</ul>` : '<p class="hint"><span class="c-ok">✓</span> None. Everything the base station checks is working.</p>';
+  $('#sys-faults').innerHTML = !hb ? '<p class="hint">Faults are listed in each heartbeat.</p>' : faults.length ? `<ul class="timeline">${faults.map(f => `<li><span class="mk warn"></span><div class="what">${esc(String(f).replace(/_/g, ' '))}</div></li>`).join('')}</ul>` : '<p class="hint"><span class="c-ok">âœ“</span> None. Everything the base station checks is working.</p>';
   renderCmdLog();
 }
 
@@ -2093,7 +2093,7 @@ function onMqttMessage(topic, payload, packet) {
 /* ================= history file (SQLite) ================= */
 async function openSqlite(file) {
   const msg = $('#file-msg');
-  msg.innerHTML = `<div class="notice info">Reading ${esc(file.name)}…</div>`;
+  msg.innerHTML = `<div class="notice info">Reading ${esc(file.name)}â€¦</div>`;
   try {
     await loadScript(SQLJS_URL);
     const SQL = await window.initSqlJs();
@@ -2427,7 +2427,7 @@ function renderConnMsg() {
   $('#f-disconnect').disabled = !MQ.client;
   const busy = MQ.status === 'connecting';
   $('#f-connect').disabled = busy;
-  $('#f-connect').textContent = busy ? 'Connecting…' : MQ.client ? 'Reconnect' : 'Connect';
+  $('#f-connect').textContent = busy ? 'Connectingâ€¦' : MQ.client ? 'Reconnect' : 'Connect';
 }
 function renderConnect() { renderConnMsg(); updateDemoUI(); }
 function readForm() {
