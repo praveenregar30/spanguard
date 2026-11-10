@@ -411,7 +411,7 @@ function lineChart(el, o) {
   const legSeries = series.filter(s => s.name && !s.noLegend);
   const legend = legSeries.length >= 2 ? `<div class="legend">${legSeries.map(s => `<span><i class="${s.dash ? 'dash' : ''}" style="border-color:${s.color}"></i>${esc(s.name)}</span>`).join('')}</div>` : '';
   el.innerHTML = legend + `<div class="chart-box">${svg}<div class="tip" hidden></div></div>`;
-  const box = el.querySelector('.chart-box'), svgEl = box.querySelector('svg'), tip = box.querySelector('.tip'), xh = svgEl.querySelector('.xhair'), hd = svgEl.querySelector('.hdots'), hit = svgEl.querySelector('.hit');
+  const box = el.querySelector('.chart-box'); if (entering()) box.classList.add('reveal'); const svgEl = box.querySelector('svg'), tip = box.querySelector('.tip'), xh = svgEl.querySelector('.xhair'), hd = svgEl.querySelector('.hdots'), hit = svgEl.querySelector('.hit');
   const toX = e => { const r = svgEl.getBoundingClientRect(); return x0 + ((e.clientX - r.left) * (W / r.width) - m.l) / pw * (x1 - x0); };
   const hide = () => { tip.hidden = true; xh.setAttribute('visibility', 'hidden'); hd.innerHTML = ''; };
   hit.addEventListener('pointermove', e => {
@@ -483,7 +483,7 @@ function waveStack(el, o) {
   for (const v of niceTicks(0, dur, Math.max(3, Math.floor(pw / 80))).ticks) if (v <= dur) svg += `<text x="${X(v).toFixed(1)}" y="${H - 7}" text-anchor="middle">${v}${v === 0 ? ' s' : ''}</text>`;
   svg += `<line class="xhair" y1="${m.t}" y2="${bottom}" visibility="hidden"/><rect class="hit${o.onClick ? ' clickable' : ''}" x="${m.l}" y="${m.t}" width="${pw}" height="${bottom - m.t}"/></svg>`;
   el.innerHTML = `<div class="legend"><span>Scale: each row spans ${MINUS}${fmt(amp, amp < 10 ? 1 : 0)} to +${fmt(amp, amp < 10 ? 1 : 0)} ${esc(o.unit || 'mg')}</span></div><div class="chart-box">${svg}<div class="tip" hidden></div></div>`;
-  const box = el.querySelector('.chart-box'), svgEl = box.querySelector('svg'), tip = box.querySelector('.tip'), xh = svgEl.querySelector('.xhair'), hit = svgEl.querySelector('.hit');
+  const box = el.querySelector('.chart-box'); if (entering()) box.classList.add('reveal'); const svgEl = box.querySelector('svg'), tip = box.querySelector('.tip'), xh = svgEl.querySelector('.xhair'), hit = svgEl.querySelector('.hit');
   const toT = e => { const r = svgEl.getBoundingClientRect(); return clamp(((e.clientX - r.left) * (W / r.width) - m.l) / pw * dur, 0, dur); };
   hit.addEventListener('pointermove', e => {
     const t = toT(e), xx = X(t);

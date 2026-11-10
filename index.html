@@ -20,6 +20,7 @@
   --water:#cfdee4; --water2:#b5cbd5; --hill:#e2e9e1; --hill2:#d6e0d5; --bank:#cdd8cb;
   --stone:#d3d8cf; --stone-line:#a7b0a6; --deck:#2b3a44; --rail:#5b6a73; --sky:#edf1ec;
   --ev:rgba(168,104,15,.10);
+  --sky-top:#d6e5ea; --sky-bot:#edf1ec; --sun:#f0d48e; --cloud:rgba(255,255,255,.88); --star-op:0; --cut-op:0;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
@@ -33,6 +34,7 @@
     --water:#11263a; --water2:#1a3650; --hill:#131e25; --hill2:#17242c; --bank:#1b2a33;
     --stone:#26333b; --stone-line:#3d4d57; --deck:#c9d6dc; --rail:#7d909a; --sky:#10171c;
     --ev:rgba(229,171,76,.10);
+    --sky-top:#070e14; --sky-bot:#10171c; --sun:#dfe7ec; --cloud:rgba(46,64,77,.55); --star-op:.8; --cut-op:1;
   }
 }
 :root[data-theme="dark"]{
@@ -46,6 +48,7 @@
   --water:#11263a; --water2:#1a3650; --hill:#131e25; --hill2:#17242c; --bank:#1b2a33;
   --stone:#26333b; --stone-line:#3d4d57; --deck:#c9d6dc; --rail:#7d909a; --sky:#10171c;
   --ev:rgba(229,171,76,.10);
+    --sky-top:#070e14; --sky-bot:#10171c; --sun:#dfe7ec; --cloud:rgba(46,64,77,.55); --star-op:.8; --cut-op:1;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -350,6 +353,65 @@ dl.facts dd small{font:400 14px Barlow,sans-serif;color:var(--ink2)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 footer.foot{color:var(--ink3);font-size:13.5px;padding-bottom:28px}
 
+
+/* ===== motion layer ===== */
+.sky1{stop-color:var(--sky-top)} .sky2{stop-color:var(--sky-bot)}
+.orb{fill:var(--sun)} .orb-cut{fill:var(--sky-top);opacity:var(--cut-op)}
+.stars circle{fill:var(--ink);opacity:var(--star-op);animation:twinkle 3.2s ease-in-out infinite}
+@keyframes twinkle{50%{opacity:calc(var(--star-op) * .25)}}
+.cloud{fill:var(--cloud)}
+.clouds-in{animation:clouds 150s linear infinite}
+.clouds-in.c2{animation-duration:210s;animation-delay:-120s}
+@keyframes clouds{from{transform:translateX(-260px)}to{transform:translateX(1160px)}}
+[data-depth]{transition:transform .9s cubic-bezier(.2,.7,.2,1)}
+.link{fill:none;stroke:var(--trace);stroke-width:1.2;stroke-dasharray:2 7;opacity:.22;animation:flow 1.8s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-18}}
+.packet{fill:var(--trace)}
+.mast{fill:none;stroke:var(--rail);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.cab{fill:var(--panel);stroke:var(--rail);stroke-width:1.5}
+.cab-led{fill:var(--ok);animation:blink 2.4s ease-in-out infinite}
+.sig{fill:none;stroke:var(--trace);stroke-width:1.6;opacity:0;transform-box:fill-box;transform-origin:center}
+.tx.on .sig{animation:sig 1.6s ease-out both}
+.tx.on .sig:nth-child(2){animation-delay:.25s} .tx.on .sig:nth-child(3){animation-delay:.5s}
+@keyframes sig{from{opacity:.9;transform:scale(1)}to{opacity:0;transform:scale(6)}}
+.node .pulse{fill:currentColor;opacity:0;pointer-events:none}
+#deck{transition:fill .3s}
+.hero > *{position:relative;z-index:1}
+.hero::after{content:"";position:absolute;inset:-10%;background:radial-gradient(42% 70% at 88% 0%,var(--hero-bg,transparent),transparent 72%),radial-gradient(36% 60% at 12% 110%,var(--hero-bg,transparent),transparent 72%);pointer-events:none;animation:heroGlow 10s ease-in-out infinite alternate;z-index:0}
+@keyframes heroGlow{from{transform:translateX(-4%)}to{transform:translateX(4%)}}
+.hero-icon{position:relative}
+.hero-icon .orbit{position:absolute;inset:-7px;width:calc(100% + 14px);height:calc(100% + 14px);fill:none;stroke:var(--hero-c);stroke-width:1.6;stroke-dasharray:2 8;opacity:.7;animation:spin 18s linear infinite}
+.hero.bad .hero-icon .orbit{animation-duration:4s;opacity:1}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hero-icon.draw svg:not(.orbit) *{stroke-dasharray:140;stroke-dashoffset:140;animation:dash 1.2s .15s cubic-bezier(.4,.1,.2,1) forwards}
+@keyframes dash{to{stroke-dashoffset:0}}
+.hero h1 .w{display:inline-block;animation:wordUp .6s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--d) * 70ms + .1s)}
+@keyframes wordUp{from{opacity:0;transform:translateY(.5em)}to{opacity:1;transform:none}}
+.tabs{position:relative}
+.tabs a[aria-current="page"]{border-bottom-color:transparent}
+.tab-ink{position:absolute;left:0;bottom:0;width:0;height:3px;border-radius:3px 3px 0 0;background:var(--trace);transition:transform .45s cubic-bezier(.3,.8,.2,1),width .45s cubic-bezier(.3,.8,.2,1);pointer-events:none}
+.page.enter > *{animation:rise .6s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--i,0) * 80ms)}
+.chart-box.reveal .chart-svg{animation:wipe 1.1s cubic-bezier(.45,.05,.2,1) both}
+@keyframes wipe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+#seismo{width:190px;height:30px;color:var(--trace);flex:none}
+.pill .dot.blip{animation:blipRing .9s ease-out}
+@keyframes blipRing{from{box-shadow:0 0 0 0 var(--ok)}to{box-shadow:0 0 0 10px transparent}}
+.spark{display:block;width:120px;height:24px;margin-top:6px;overflow:visible}
+.spark path{fill:none;stroke:var(--trace);stroke-width:1.4;opacity:.8;stroke-linejoin:round}
+.spark-end{fill:var(--trace);transform-box:fill-box;transform-origin:center;animation:endPulse 2s ease-in-out infinite}
+@keyframes endPulse{50%{transform:scale(1.9);opacity:.45}}
+.gauge .g-val{stroke-dasharray:1 2;stroke-dashoffset:1}
+.g-needle-g{transform-origin:52px 54px}
+.panel{transition:border-color .25s ease}
+.panel:hover{border-color:color-mix(in srgb,var(--trace) 32%,var(--rule))}
+.inst{transition:background-color .25s ease}
+.inst:hover{background:color-mix(in srgb,var(--trace) 5%,transparent)}
+.is-alarm #bridge #deck{animation:deckAlarm 1.4s ease-in-out infinite}
+@keyframes deckAlarm{50%{fill:var(--bad)}}
+.is-alarm .hero{animation:alarmRing 1.6s ease-in-out infinite}
+@keyframes alarmRing{50%{border-color:var(--bad)}}
+@media (max-width:760px){#seismo{display:none}}
+@media (max-width:640px){.player{flex-wrap:wrap}.player #newer{flex:1 1 100%}}
 @media (max-width:1000px){
   .strip{grid-template-columns:repeat(3,minmax(0,1fr))}
   .inst:nth-child(4){border-left:0}
@@ -415,6 +477,7 @@ footer.foot{color:var(--ink3);font-size:13.5px;padding-bottom:28px}
       <svg width="46" height="28" viewBox="0 0 46 28" aria-hidden="true"><path d="M2 12h42" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M8 12v-5M15 12v-5M23 12v-5M31 12v-5M38 12v-5M6 7h34" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M4 14l-2 10h7l-1-10M42 14l2 10h-7l1-10" fill="currentColor" opacity=".55"/><path d="M10 22c3-2 5 0 8 0s5-2 8 0 5 0 8 0" style="stroke:var(--trace)" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
       <span><span class="brand-name">Bridge health</span><span class="site" id="site-name">Site bridge01</span></span>
     </a>
+    <canvas id="seismo" aria-hidden="true" title="Latest capture, mid-span"></canvas>
     <a class="pill" id="conn-pill" href="#connect"><span class="dot"></span><span id="conn-text">Starting</span></a>
     <button class="btn icon" id="theme-btn" type="button" aria-label="Switch to dark mode" title="Switch light or dark"></button>
   </div>
@@ -425,6 +488,7 @@ footer.foot{color:var(--ink3);font-size:13.5px;padding-bottom:28px}
     <a href="#events" data-page="events">Events</a>
     <a href="#system" data-page="system">System</a>
     <a href="#connect" data-page="connect">Connect</a>
+    <span class="tab-ink" aria-hidden="true"></span>
   </nav>
 </header>
 
@@ -456,17 +520,29 @@ footer.foot{color:var(--ink3);font-size:13.5px;padding-bottom:28px}
       </div>
     </div>
     <div class="bridge-wrap">
-      <svg id="bridge" viewBox="0 76 1000 254" role="group" aria-labelledby="bridge-title">
+      <svg id="bridge" viewBox="0 40 1000 290" role="group" aria-labelledby="bridge-title">
         <title id="bridge-title">Side view of the bridge. The deck moves with the measured vibration, greatly exaggerated.</title>
         <defs>
           <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" class="abut-bg" style="fill:var(--stone)"/><line x1="0" y1="0" x2="0" y2="7" class="hatch-line"/></pattern>
+          <linearGradient id="skyg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="sky1"/><stop offset="1" class="sky2"/></linearGradient>
           <clipPath id="water-clip"><rect x="0" y="262" width="1000" height="68"/></clipPath>
         </defs>
+        <rect x="0" y="0" width="1000" height="270" fill="url(#skyg)"/>
+        <g data-depth="3">
+          <g class="stars" aria-hidden="true"><circle cx="70" cy="58" r="1.3"/><circle cx="160" cy="88" r="1"/><circle cx="240" cy="52" r="1.4" style="animation-delay:-1s"/><circle cx="330" cy="76" r="1"/><circle cx="410" cy="48" r="1.2" style="animation-delay:-2s"/><circle cx="520" cy="66" r="1.1"/><circle cx="600" cy="50" r="1.4" style="animation-delay:-1.4s"/><circle cx="680" cy="82" r="1"/><circle cx="760" cy="56" r="1.2" style="animation-delay:-.6s"/><circle cx="930" cy="62" r="1.1" style="animation-delay:-2.4s"/><circle cx="975" cy="96" r="1"/><circle cx="455" cy="94" r="1" style="animation-delay:-1.8s"/></g>
+          <circle class="orb" cx="860" cy="78" r="17"/><circle class="orb-cut" cx="869" cy="72" r="15"/>
+        </g>
+        <g data-depth="12" aria-hidden="true">
+          <g class="clouds-in"><g class="cloud" transform="translate(140 92)"><ellipse cx="0" cy="0" rx="38" ry="9"/><circle cx="-12" cy="-6" r="12"/><circle cx="9" cy="-10" r="15"/></g><g class="cloud" transform="translate(560 64)"><ellipse cx="0" cy="0" rx="30" ry="7"/><circle cx="-8" cy="-5" r="9"/><circle cx="8" cy="-7" r="11"/></g></g>
+          <g class="clouds-in c2"><g class="cloud" transform="translate(360 104)"><ellipse cx="0" cy="0" rx="46" ry="10"/><circle cx="-16" cy="-7" r="13"/><circle cx="10" cy="-12" r="17"/><circle cx="28" cy="-4" r="9"/></g></g>
+        </g>
+        <g data-depth="6">
         <path class="hill-far" d="M0 150C90 112 170 128 260 104C350 80 430 120 520 108C610 96 690 70 790 92C880 110 940 96 1000 84V262H0Z"/>
         <path class="hill-near" d="M0 210C110 176 210 196 320 184C440 170 540 204 660 186C770 170 880 190 1000 176V262H0Z"/>
+        </g>
         <g class="dim" aria-hidden="true">
           <path d="M80 128v-10M290 128v-6M500 128v-6M710 128v-6M920 128v-10M80 123H920"/>
-          <text x="290" y="114">Â¼</text><text x="500" y="114">Â½ span</text><text x="710" y="114">Â¾</text>
+          <text x="290" y="114">¼</text><text x="500" y="114">½ span</text><text x="710" y="114">¾</text>
         </g>
         <rect class="water" x="0" y="262" width="1000" height="68"/>
         <g clip-path="url(#water-clip)">
@@ -480,8 +556,24 @@ footer.foot{color:var(--ink3);font-size:13.5px;padding-bottom:28px}
         <path class="bank" d="M1000 196H930L942 272L960 330H1000Z"/>
         <path class="abut" d="M56 200H100L108 282H46Z"/>
         <path class="abut" d="M944 200H900L892 282H954Z"/>
+        <g class="station" aria-hidden="true">
+          <title>Base station: Raspberry Pi with a 4G modem</title>
+          <path class="mast" d="M32 166V112M24 128l8-16 8 16M26 121h12"/>
+          <rect class="cab" x="18" y="164" width="26" height="24" rx="2"/>
+          <path class="mast" d="M23 172h10M23 177h10" style="stroke-width:1.2"/>
+          <circle class="cab-led" cx="38" cy="171" r="2"/>
+          <g class="tx"><circle class="sig" cx="32" cy="110" r="5"/><circle class="sig" cx="32" cy="110" r="5"/><circle class="sig" cx="32" cy="110" r="5"/></g>
+        </g>
         <rect class="road" x="0" y="190" width="82" height="10"/>
         <rect class="road" x="918" y="190" width="82" height="10"/>
+        <g class="links" aria-hidden="true">
+          <path id="lk-n1" class="link" d="M290 186Q170 104 34 112"/>
+          <path id="lk-n2" class="link" d="M500 186Q270 64 34 112"/>
+          <path id="lk-n3" class="link" d="M710 186Q380 26 34 112"/>
+          <circle class="packet" data-node="n1" r="4" opacity="0"><animateMotion dur="1.3s" begin="indefinite" fill="freeze"><mpath href="#lk-n1"/></animateMotion><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.1;.85;1" dur="1.3s" begin="indefinite" fill="freeze"/></circle>
+          <circle class="packet" data-node="n2" r="4" opacity="0"><animateMotion dur="1.3s" begin="indefinite" fill="freeze"><mpath href="#lk-n2"/></animateMotion><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.1;.85;1" dur="1.3s" begin="indefinite" fill="freeze"/></circle>
+          <circle class="packet" data-node="n3" r="4" opacity="0"><animateMotion dur="1.3s" begin="indefinite" fill="freeze"><mpath href="#lk-n3"/></animateMotion><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.1;.85;1" dur="1.3s" begin="indefinite" fill="freeze"/></circle>
+        </g>
         <g id="cars"></g>
         <path id="deck" class="deck" d="M80 190H920V200H80Z"/>
         <path id="posts" class="posts" d=""/>
@@ -708,16 +800,16 @@ function median(arr) {
   const m = b.length >> 1;
   return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2;
 }
-const MINUS = 'âˆ’';
-function fmt(v, d = 2) { return fin(v) ? (v < 0 ? MINUS : '') + Math.abs(v).toFixed(d) : 'â€“'; }
+const MINUS = '−';
+function fmt(v, d = 2) { return fin(v) ? (v < 0 ? MINUS : '') + Math.abs(v).toFixed(d) : '–'; }
 function fmtPct(v, d = 1) {
-  if (!fin(v)) return 'â€“';
+  if (!fin(v)) return '–';
   const r = +v.toFixed(d);
   if (r === 0) return (0).toFixed(d) + ' %';
   return (r > 0 ? '+' : MINUS) + Math.abs(r).toFixed(d) + ' %';
 }
 function fmtDur(sec) {
-  if (!fin(sec)) return 'â€“';
+  if (!fin(sec)) return '–';
   sec = Math.max(0, sec);
   if (sec < 60) return Math.round(sec) + ' s';
   const m = Math.floor(sec / 60);
@@ -736,7 +828,7 @@ function fmtAgo(ts, ref) {
 function fmtClock(ts, secs) { return new Date(ts * 1000).toLocaleTimeString([], secs ? { hour: '2-digit', minute: '2-digit', second: '2-digit' } : { hour: '2-digit', minute: '2-digit' }); }
 function fmtDay(ts) { return new Date(ts * 1000).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }); }
 function fmtDT(ts) {
-  if (!fin(ts)) return 'â€“';
+  if (!fin(ts)) return '–';
   const d = new Date(ts * 1000), n = new Date();
   if (d.toDateString() === n.toDateString()) return 'today ' + fmtClock(ts);
   return fmtDay(ts) + ', ' + fmtClock(ts);
@@ -782,7 +874,7 @@ function humanWhy(why) {
       .replace(/\brms_n(\d)\b/g, 'vibration level at node $1')
       .replace(/\bdamp_m(\d)\b/g, 'mode $1 damping')
       .replace(/\b(n\d)_(\w+)/g, '$1 $2')
-      .replace(/\(\s*([+\-âˆ’]?)(\d+(?:\.\d+)?)\s*sd\s*\)/g, (m, s, n) => `(${n}Ã— the usual spread)`);
+      .replace(/\(\s*([+\-−]?)(\d+(?:\.\d+)?)\s*sd\s*\)/g, (m, s, n) => `(${n}× the usual spread)`);
     return p.charAt(0).toUpperCase() + p.slice(1);
   }).join('. ') + '.';
 }
@@ -1098,7 +1190,7 @@ function lineChart(el, o) {
   const legSeries = series.filter(s => s.name && !s.noLegend);
   const legend = legSeries.length >= 2 ? `<div class="legend">${legSeries.map(s => `<span><i class="${s.dash ? 'dash' : ''}" style="border-color:${s.color}"></i>${esc(s.name)}</span>`).join('')}</div>` : '';
   el.innerHTML = legend + `<div class="chart-box">${svg}<div class="tip" hidden></div></div>`;
-  const box = el.querySelector('.chart-box'), svgEl = box.querySelector('svg'), tip = box.querySelector('.tip'), xh = svgEl.querySelector('.xhair'), hd = svgEl.querySelector('.hdots'), hit = svgEl.querySelector('.hit');
+  const box = el.querySelector('.chart-box'); if (entering()) box.classList.add('reveal'); const svgEl = box.querySelector('svg'), tip = box.querySelector('.tip'), xh = svgEl.querySelector('.xhair'), hd = svgEl.querySelector('.hdots'), hit = svgEl.querySelector('.hit');
   const toX = e => { const r = svgEl.getBoundingClientRect(); return x0 + ((e.clientX - r.left) * (W / r.width) - m.l) / pw * (x1 - x0); };
   const hide = () => { tip.hidden = true; xh.setAttribute('visibility', 'hidden'); hd.innerHTML = ''; };
   hit.addEventListener('pointermove', e => {
@@ -1170,7 +1262,7 @@ function waveStack(el, o) {
   for (const v of niceTicks(0, dur, Math.max(3, Math.floor(pw / 80))).ticks) if (v <= dur) svg += `<text x="${X(v).toFixed(1)}" y="${H - 7}" text-anchor="middle">${v}${v === 0 ? ' s' : ''}</text>`;
   svg += `<line class="xhair" y1="${m.t}" y2="${bottom}" visibility="hidden"/><rect class="hit${o.onClick ? ' clickable' : ''}" x="${m.l}" y="${m.t}" width="${pw}" height="${bottom - m.t}"/></svg>`;
   el.innerHTML = `<div class="legend"><span>Scale: each row spans ${MINUS}${fmt(amp, amp < 10 ? 1 : 0)} to +${fmt(amp, amp < 10 ? 1 : 0)} ${esc(o.unit || 'mg')}</span></div><div class="chart-box">${svg}<div class="tip" hidden></div></div>`;
-  const box = el.querySelector('.chart-box'), svgEl = box.querySelector('svg'), tip = box.querySelector('.tip'), xh = svgEl.querySelector('.xhair'), hit = svgEl.querySelector('.hit');
+  const box = el.querySelector('.chart-box'); if (entering()) box.classList.add('reveal'); const svgEl = box.querySelector('svg'), tip = box.querySelector('.tip'), xh = svgEl.querySelector('.xhair'), hit = svgEl.querySelector('.hit');
   const toT = e => { const r = svgEl.getBoundingClientRect(); return clamp(((e.clientX - r.left) * (W / r.width) - m.l) / pw * dur, 0, dur); };
   hit.addEventListener('pointermove', e => {
     const t = toT(e), xx = X(t);
@@ -1221,7 +1313,7 @@ function replayReset() {
   const tr = $('#traces'); if (tr) tr.innerHTML = '';
 }
 function setupBridge() {
-  $('#node-layer').innerHTML = NODES.map(n => `<g class="node none" data-node="${n}" tabindex="0" role="button" aria-pressed="false" aria-label="Node ${n.slice(1)} at ${NODE_PLACE[n]}. Show its readings."><line class="leader" x1="0" y1="11" x2="0" y2="33"/><circle class="hit" r="26"/><circle class="halo" r="15"/><circle class="ring" r="9"/><circle class="core" r="3.5"/><text class="lbl" y="52">${n}</text></g>`).join('');
+  $('#node-layer').innerHTML = NODES.map(n => `<g class="node none" data-node="${n}" tabindex="0" role="button" aria-pressed="false" aria-label="Node ${n.slice(1)} at ${NODE_PLACE[n]}. Show its readings."><circle class="pulse" r="9"/><line class="leader" x1="0" y1="11" x2="0" y2="33"/><circle class="hit" r="26"/><circle class="halo" r="15"/><circle class="ring" r="9"/><circle class="core" r="3.5"/><text class="lbl" y="52">${n}</text></g>`).join('');
   $$('#node-layer .node').forEach(g => {
     g.addEventListener('click', () => selectNode(g.dataset.node));
     g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectNode(g.dataset.node); } });
@@ -1273,6 +1365,9 @@ async function replayLoad(id, autoplay) {
   R.id = id; R.p = p; R.dec = dec; R.dur = dec.dur || 30;
   if (R.pending === id) R.pending = null;
   R.amp = robustAmp(NODES.map(n => ({ data: dec.nodes[n]?.wave })).filter(c => c.data));
+  R.disp = {};
+  for (const n of NODES) { const w = dec.nodes[n]?.wave; if (w && w.length > 8) R.disp[n] = lowpass(w, dec.fs, 3.2); }
+  R.damp = robustAmp(NODES.map(n => ({ data: R.disp[n] })).filter(c => c.data));
   $('#scrub').max = R.dur;
   buildTraces();
   if (RM.matches) { R.t = strongestMoment(dec); R.playing = false; }
@@ -1304,18 +1399,49 @@ function step(ts) {
   frame(R.t);
   if (R.playing) R.raf = requestAnimationFrame(step);
 }
+/* zero-phase 2nd-order low-pass (Butterworth, run forward and backward) */
+function lowpass(x, fs, fc) {
+  const K = Math.tan(Math.PI * fc / fs), q = Math.SQRT1_2, n = 1 / (1 + K / q + K * K);
+  const b0 = K * K * n, b1 = 2 * b0, a1 = 2 * (K * K - 1) * n, a2 = (1 - K / q + K * K) * n;
+  const run = src => {
+    const out = new Float32Array(src.length);
+    let x1 = src[0] || 0, x2 = x1, y1 = x1, y2 = x1;
+    for (let i = 0; i < src.length; i++) { const v = b0 * src[i] + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = src[i]; y2 = y1; y1 = v; out[i] = v; }
+    return out;
+  };
+  return run(run(x).reverse()).reverse();
+}
+/* static deflection of a simply supported span under a point load at a (0..1); 1 = mid-span load seen at mid-span */
+function influence(u, a) {
+  if (a <= 0 || a >= 1 || u <= 0 || u >= 1) return 0;
+  const b = 1 - a;
+  const w = u <= a ? b * u * (1 - b * b - u * u) / 6 : a * (1 - u) * (1 - a * a - (1 - u) * (1 - u)) / 6;
+  return w / 0.0208333;
+}
 function frame(t) {
-  const d = R.dec, y = [0, 0, 0], EXAG = window.innerWidth < 640 ? 20 : 12;
+  const d = R.dec, y = [0, 0, 0], lv = [0, 0, 0], phone = window.innerWidth < 640;
+  const EX = phone ? 6 : 4, SAG = phone ? 6 : 3.5, LIM = phone ? 12 : 8;
   if (d) {
     const fi = t * d.fs;
     NODES.forEach((n, j) => {
       const w = d.nodes[n]?.wave; if (!w || !w.length) return;
       const i0 = clamp(Math.floor(fi), 0, w.length - 1), i1 = Math.min(w.length - 1, i0 + 1), fr = clamp(fi - i0, 0, 1);
-      y[j] = clamp((w[i0] * (1 - fr) + w[i1] * fr) / R.amp * EXAG, -EXAG * 1.2, EXAG * 1.2);
+      lv[j] = Math.min(1, Math.abs(w[i0] * (1 - fr) + w[i1] * fr) / R.amp);
+      const dw = R.disp && R.disp[n]; if (!dw) return;
+      y[j] = EX * Math.tanh((dw[i0] * (1 - fr) + dw[i1] * fr) / R.damp);
     });
   }
   const a = [0, 1, 2].map(r => MINV[r][0] * y[0] + MINV[r][1] * y[1] + MINV[r][2] * y[2]);
-  const disp = u => (u <= 0 || u >= 1) ? 0 : a[0] * Math.sin(Math.PI * u) + a[1] * Math.sin(2 * Math.PI * u) + a[2] * Math.sin(3 * Math.PI * u);
+  const loads = d ? d.events.map((e, i) => ({ s: +e[0], e: +e[1], i })).filter(e => e.e > e.s && t >= e.s && t <= e.e).map(ev => {
+    const u = (t - ev.s) / (ev.e - ev.s), dir = ev.i % 2 ? -1 : 1;
+    return { ev, dir, pos: -0.07 + 1.14 * (dir > 0 ? u : 1 - u), m: 0.75 + ((ev.i * 37) % 10) / 20 };
+  }) : [];
+  const disp = u => {
+    if (u <= 0 || u >= 1) return 0;
+    let v = a[0] * Math.sin(Math.PI * u) + a[1] * Math.sin(2 * Math.PI * u) + a[2] * Math.sin(3 * Math.PI * u);
+    for (const L of loads) v -= SAG * L.m * influence(u, L.pos);
+    return LIM * Math.tanh(v / LIM);
+  };
   const K = 48;
   let top = '', bot = '', posts = '', rail = '';
   for (let i = 0; i <= K; i++) {
@@ -1329,22 +1455,19 @@ function frame(t) {
   $('#rail').setAttribute('d', rail);
   $('#posts').setAttribute('d', posts);
   $$('#node-layer .node').forEach(g => {
-    const u = NODE_U[g.dataset.node];
+    const n = g.dataset.node, u = NODE_U[n], L = lv[NODES.indexOf(n)];
     g.setAttribute('transform', `translate(${(BX0 + u * BSPAN).toFixed(1)} ${(BY - disp(u) + DECK_T / 2).toFixed(1)})`);
+    const pl = g.firstElementChild;
+    if (pl && pl.classList.contains('pulse')) { pl.setAttribute('r', (phone ? 20 * (1 + 0.9 * L) : 9 * (1 + 2.2 * L)).toFixed(1)); pl.style.opacity = ((phone ? 0.28 : 0.4) * L).toFixed(3); }
   });
-  // vehicles
-  const cars = $$('#cars .car');
-  const evs = d ? d.events.map((e, i) => ({ s: +e[0], e: +e[1], i })).filter(e => t >= e.s && t <= e.e) : [];
-  cars.forEach((g, k) => {
-    const ev = evs[k];
-    if (!ev || !(ev.e > ev.s)) { g.setAttribute('visibility', 'hidden'); return; }
-    const u = (t - ev.s) / (ev.e - ev.s), dir = ev.i % 2 ? -1 : 1;
-    const pos = -0.07 + 1.14 * (dir > 0 ? u : 1 - u);
-    const x = BX0 + pos * BSPAN, yy = BY - disp(pos);
-    const slope = -(disp(pos + 0.01) - disp(pos - 0.01)) / (0.02 * BSPAN);
+  $$('#cars .car').forEach((g, k) => {
+    const L = loads[k];
+    if (!L) { g.setAttribute('visibility', 'hidden'); return; }
+    const x = BX0 + L.pos * BSPAN, yy = BY - disp(L.pos);
+    const slope = -(disp(L.pos + 0.01) - disp(L.pos - 0.01)) / (0.02 * BSPAN);
     g.setAttribute('visibility', 'visible');
     g.setAttribute('transform', `translate(${x.toFixed(1)} ${yy.toFixed(1)}) rotate(${(Math.atan(slope) * 180 / Math.PI).toFixed(2)})`);
-    g.firstElementChild.setAttribute('transform', `scale(${dir} 1)`);
+    g.firstElementChild.setAttribute('transform', `scale(${L.dir} 1)`);
   });
   const pct = (R.dur ? t / R.dur * 100 : 0).toFixed(3) + '%';
   $$('#traces .ph').forEach(ph => { ph.style.left = pct; });
@@ -1410,14 +1533,14 @@ function renderNodeInfo() {
   if (!n) { box.innerHTML = '<p class="hint" style="margin:0">Select a node on the bridge (or its trace label) to see its readings.</p>'; return; }
   const nd = R.dec?.nodes[n], st = R.nst[n] || { cls: '', text: 'no data' };
   const spikes = nd ? nd.spikes.length : 0, bad = nd ? nd.glitches.length : 0;
-  let pk = 'â€“';
+  let pk = '–';
   if (nd && fin(nd.peak)) { pk = fmt(nd.peak, 1) + ' mg'; if (fin(nd.peakT)) pk += ` <small class="c-mute">at ${fmt(nd.peakT, 1)} s</small>`; }
   box.innerHTML = `<div class="ni-head"><b>Node ${n.slice(1)}</b><span class="sub" style="margin:0">at ${NODE_PLACE[n]}</span><span class="badge ${st.cls}">${esc(st.text)}</span>${nd && nd.ok === false ? '<span class="badge warn">bad data in this capture</span>' : ''}</div>
   <dl class="ni">
-    <div><dt>Vibration level (rms)</dt><dd>${nd && fin(nd.rms) ? fmt(nd.rms, 2) + ' mg' : 'â€“'}</dd></div>
+    <div><dt>Vibration level (rms)</dt><dd>${nd && fin(nd.rms) ? fmt(nd.rms, 2) + ' mg' : '–'}</dd></div>
     <div><dt>Largest peak</dt><dd>${pk}</dd></div>
-    <div><dt>Spikes</dt><dd>${nd ? spikes : 'â€“'}</dd></div>
-    <div><dt>Bad reads</dt><dd>${nd ? bad : 'â€“'}</dd></div>
+    <div><dt>Spikes</dt><dd>${nd ? spikes : '–'}</dd></div>
+    <div><dt>Bad reads</dt><dd>${nd ? bad : '–'}</dd></div>
     <div><dt>Last reported</dt><dd>${esc(fmtAgo(st.heard, nowRef()))}</dd></div>
   </dl>`;
 }
@@ -1461,32 +1584,30 @@ function computeHeadline() {
   return r;
 }
 function renderHero() {
-  const h = computeHeadline(), now = nowRef(), el = $('#hero');
+  const h = computeHeadline(), now = nowRef(), el = $('#hero'), fresh = heroFresh(h.title);
   el.className = 'hero ' + h.cls;
   const fileNote = !isLive() && S.file && h.last ? `<span>From the history file</span>` : '';
-  el.innerHTML = `<div class="hero-icon" aria-hidden="true">${ICON[h.icon]}</div><div><h1>${h.title}</h1><p>${h.text}</p></div>
+  el.innerHTML = `<div class="hero-icon${fresh ? ' draw' : ''}" aria-hidden="true"><svg class="orbit" viewBox="0 0 100 100"><circle cx="50" cy="50" r="47"/></svg>${ICON[h.icon]}</div><div><h1>${fresh ? splitWords(h.title) : h.title}</h1><p>${h.text}</p></div>
   <div class="meta">${h.last ? `<span>Last capture <b>${esc(fmtAgo(h.last.ts, nowS()))}</b></span>` : ''}${fin(h.since) ? `<span>Like this for <b>${esc(fmtDur(now - h.since))}</b></span>` : ''}${fileNote}</div>`;
   const alarm = h.state === 'ALARM' && h.icon === 'bad';
+  document.body.classList.toggle('is-alarm', alarm);
   document.title = (alarm ? 'Alarm: ' : h.icon === 'warn' ? 'Changed: ' : '') + 'Bridge health monitor';
   const tab = $('.tabs a[data-page="overview"]');
   tab.innerHTML = 'Overview' + (alarm || h.icon === 'offline' ? '<span class="tab-dot" aria-label="needs attention"></span>' : '');
 }
 function gaugeSVG(r, col) {
-  const cx = 52, cy = 54, Rr = 42;
-  const pt = f => { const a = Math.PI * (1 - f); return [cx + Rr * Math.cos(a), cy - Rr * Math.sin(a)]; };
-  const f = fin(r) ? clamp(r / 2, 0, 1) : 0;
-  const [ax, ay] = pt(0), [bx, by] = pt(1), [vx, vy] = pt(f);
-  const na = Math.PI * (1 - f), nx = cx + (Rr - 13) * Math.cos(na), ny = cy - (Rr - 13) * Math.sin(na);
-  return `<svg class="gauge" viewBox="0 0 104 62" aria-hidden="true"><path class="g-bg" d="M${ax} ${ay}A${Rr} ${Rr} 0 0 1 ${bx} ${by}"/>${f > 0.004 ? `<path class="g-val" style="stroke:${col}" d="M${ax} ${ay}A${Rr} ${Rr} 0 0 1 ${vx.toFixed(1)} ${vy.toFixed(1)}"/>` : ''}<line class="g-tick" x1="${cx}" x2="${cx}" y1="${cy - Rr - 7}" y2="${cy - Rr + 8}"/>${fin(r) ? `<line class="g-needle" x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}"/><circle cx="${cx}" cy="${cy}" r="3.5" fill="var(--ink)"/>` : ''}<text x="4" y="61">0</text><text x="94" y="61">2</text></svg>`;
+  const cx = 52, cy = 54, Rr = 42, f = fin(r) ? clamp(r / 2, 0, 1) : 0;
+  const arc = `M${cx - Rr} ${cy}A${Rr} ${Rr} 0 0 1 ${cx + Rr} ${cy}`;
+  return `<svg class="gauge" viewBox="0 0 104 62" aria-hidden="true" data-f="${f}"><path class="g-bg" d="${arc}"/><path class="g-val" pathLength="1" style="stroke:${col}" d="${arc}"/><line class="g-tick" x1="${cx}" x2="${cx}" y1="${cy - Rr - 7}" y2="${cy - Rr + 8}"/>${fin(r) ? `<g class="g-needle-g"><line class="g-needle" x1="${cx}" y1="${cy}" x2="${cx - Rr + 13}" y2="${cy}"/></g><circle cx="${cx}" cy="${cy}" r="3.5" fill="var(--ink)"/>` : ''}<text x="4" y="61">0</text><text x="94" y="61">2</text></svg>`;
 }
 function renderStrip() {
   const last = lastCap(), bl = baseline(), hb = lastHb(), now = nowRef();
   const ratio = last?.ratio;
   const gcol = !fin(ratio) ? 'var(--ink3)' : ratio >= 1 ? 'var(--bad)' : ratio >= 0.8 ? 'var(--warn)' : 'var(--ok)';
-  const i1 = `<div class="inst"><div class="lab">Anomaly score</div><div class="gauge-row">${gaugeSVG(ratio, gcol)}<div><div class="big" style="color:${fin(ratio) && ratio >= 1 ? 'var(--bad)' : 'inherit'}">${fin(ratio) ? fmt(ratio, 2) : 'â€“'}</div><div class="note">${last && last.mode === 'collect' ? 'not scored while learning' : 'alarm level is 1.0'}</div></div></div></div>`;
+  const i1 = `<div class="inst"><div class="lab">Anomaly score</div><div class="gauge-row">${gaugeSVG(ratio, gcol)}<div><div class="big" style="color:${fin(ratio) && ratio >= 1 ? 'var(--bad)' : 'inherit'}">${fin(ratio) ? `<span data-tw="score" data-v="${ratio}" data-d="2">${fmt(ratio, 2)}</span>` : '–'}</div><div class="note">${last && last.mode === 'collect' ? 'not scored while learning' : 'alarm level is 1.0'}</div>${sparkSVG(S.caps.slice(-72).map(c => c.ratio))}</div></div></div>`;
   const rows = [0, 1, 2].map(i => {
     const f = Array.isArray(last?.freq) ? +last.freq[i] : NaN, pc = freqPct(last, i, bl);
-    return `<span class="m">Mode ${i + 1}</span><span class="v">${fin(f) ? fmt(f, 2) : 'â€“'} <small class="c-mute" style="font-size:14px">Hz</small></span><span class="d${pc != null && pc < -3 ? ' low' : ''}">${pc == null ? '' : fmtPct(pc)}</span>`;
+    return `<span class="m">Mode ${i + 1}</span><span class="v">${fin(f) ? `<span data-tw="f${i}" data-v="${f}" data-d="2">${fmt(f, 2)}</span>` : '–'} <small class="c-mute" style="font-size:14px">Hz</small></span><span class="d${pc != null && pc < -3 ? ' low' : ''}">${pc == null ? '' : `<span data-tw="p${i}" data-v="${pc}" data-d="1" data-f="pct">${fmtPct(pc)}</span>`}</span>`;
   }).join('');
   const i2 = `<div class="inst"><div class="lab">Natural frequencies</div><div class="freqs">${rows}</div><div class="note">${bl ? `change from healthy (median of the first ${bl.n} normal captures)` : 'healthy baseline needs 5 good normal captures'}</div></div>`;
   const midnight = new Date(now * 1000); midnight.setHours(0, 0, 0, 0);
@@ -1494,7 +1615,7 @@ function renderStrip() {
   let tmin = Infinity, tmax = -Infinity;
   for (let i = S.caps.length - 1; i >= 0 && S.caps[i].ts >= t0; i--) { const v = +S.caps[i].temp; if (fin(v)) { tmin = Math.min(tmin, v); tmax = Math.max(tmax, v); } }
   const temp = +last?.temp;
-  const i3 = `<div class="inst"><div class="lab">Deck temperature</div><div class="big">${fin(temp) ? fmt(temp, 1) : 'â€“'}<small>Â°C</small></div><div class="note">${fin(tmin) ? `today ${fmt(tmin, 1)} to ${fmt(tmax, 1)} Â°C` : 'no readings today'}</div></div>`;
+  const i3 = `<div class="inst"><div class="lab">Deck temperature</div><div class="big">${fin(temp) ? `<span data-tw="temp" data-v="${temp}" data-d="1">${fmt(temp, 1)}</span>` : '–'}<small>°C</small></div><div class="note">${fin(tmin) ? `today ${fmt(tmin, 1)} to ${fmt(tmax, 1)} °C` : 'no readings today'}</div>${sparkSVG(S.caps.filter(c => c.ts >= now - 86400).filter((c, i, arr) => i % Math.max(1, Math.floor(arr.length / 96)) === 0).map(c => +c.temp))}</div>`;
   let tot = 0, good = 0; const flags = {};
   for (let i = S.caps.length - 1; i >= 0 && S.caps[i].ts >= now - 86400; i--) {
     const c = S.caps[i]; tot++; if (c.q) good++;
@@ -1502,11 +1623,13 @@ function renderStrip() {
   }
   const top = Object.entries(flags).sort((a, b) => b[1] - a[1])[0];
   const gp = tot ? good / tot * 100 : null;
-  const i4 = `<div class="inst"><div class="lab">Good captures, 24 h</div><div class="big" style="color:${gp != null && gp < 80 ? 'var(--warn)' : 'inherit'}">${gp == null ? 'â€“' : Math.floor(gp)}<small>%</small></div><div class="note">${!tot ? 'no captures in 24 h' : top ? `most common problem: ${esc(String(top[0]).replace(/_/g, ' '))} (${top[1]})` : `all ${tot} were clean`}</div></div>`;
+  const i4 = `<div class="inst"><div class="lab">Good captures, 24 h</div><div class="big" style="color:${gp != null && gp < 80 ? 'var(--warn)' : 'inherit'}">${gp == null ? '–' : `<span data-tw="good" data-v="${Math.floor(gp)}" data-d="0">${Math.floor(gp)}</span>`}<small>%</small></div><div class="note">${!tot ? 'no captures in 24 h' : top ? `most common problem: ${esc(String(top[0]).replace(/_/g, ' '))} (${top[1]})` : `all ${tot} were clean`}</div></div>`;
   const mo = hb?.modem || {}, sig = +mo.signal_pct;
   const bars = [20, 40, 60, 80].map((t, k) => `<i class="${fin(sig) && sig >= t - 10 ? 'on' : ''}" style="height:${6 + k * 5}px"></i>`).join('');
-  const i5 = `<div class="inst"><div class="lab">Mobile signal</div><div class="big"><span class="sigbars" aria-hidden="true">${bars}</span>${fin(sig) ? Math.round(sig) : 'â€“'}<small>%</small></div><div class="note">${hb ? esc([mo.tech, mo.operator].filter(Boolean).join(' with ') || 'network unknown') : 'no heartbeat yet'}</div></div>`;
+  const i5 = `<div class="inst"><div class="lab">Mobile signal</div><div class="big"><span class="sigbars" aria-hidden="true">${bars}</span>${fin(sig) ? `<span data-tw="sig" data-v="${Math.round(sig)}" data-d="0">${Math.round(sig)}</span>` : '–'}<small>%</small></div><div class="note">${hb ? esc([mo.tech, mo.operator].filter(Boolean).join(' with ') || 'network unknown') : 'no heartbeat yet'}</div></div>`;
   $('#strip').innerHTML = i1 + i2 + i3 + i4 + i5;
+  tweenIn($('#strip')); animateGauge($('#strip'));
+  if (last) TW_BOOT = false;
 }
 function openCapture(id) { location.hash = '#vibration/' + encodeURIComponent(id); }
 function renderOvChart() {
@@ -1608,9 +1731,9 @@ function vibSummaryHTML(id) {
   return `<div class="summary"><span class="badge ${STATE_CLS[state] || ''}">${STATE_WORD[state] || esc(state)}</span>
     <span class="kv">Time<b>${esc(fmtDT(src.ts))}</b></span>
     <span class="kv">Score<b>${fmt(src.ratio, 2)}</b></span>
-    <span class="kv">Vehicle crossings<b>${evs ?? 'â€“'}</b></span>
-    <span class="kv">Spikes<b>${spikes ?? 'â€“'}</b></span>
-    <span class="kv">Bad reads<b>${bad ?? 'â€“'}</b></span>
+    <span class="kv">Vehicle crossings<b>${evs ?? '–'}</b></span>
+    <span class="kv">Spikes<b>${spikes ?? '–'}</b></span>
+    <span class="kv">Bad reads<b>${bad ?? '–'}</b></span>
     ${src.q === false ? '<span class="badge warn">quality problem' + (Array.isArray(src.flags) && src.flags.length ? ': ' + esc(src.flags.join(', ').replace(/_/g, ' ')) : '') + '</span>' : ''}
     ${p?.live ? '<span class="badge info">live window</span>' : ''}${src.mode === 'collect' ? '<span class="badge info">learning</span>' : ''}</div>
     <p class="why-line">${why ? '<b>Reason.</b> ' + esc(why) : (state === 'NORMAL' ? 'Nothing unusual in this capture.' : '')} <span class="c-mute">Capture ${esc(id)}</span></p>`;
@@ -1688,7 +1811,7 @@ async function renderSpectrum(p, dec) {
     label: 'Vibration spectrum', series, vlines, xMin: 0, xMax: fmax, height: el.clientWidth < 500 ? 230 : 280,
     fmtY: v => fmt(v, 0), fmtX: v => v + (v === 0 ? ' Hz' : ''),
     tipTitle: x => fmt(x, 2) + ' Hz', fmtTip: v => fmt(v, 1) + ' dB',
-    tipExtra: () => '<div class="tx">dB of mgÂ² per Hz</div>',
+    tipExtra: () => '<div class="tx">dB of mg² per Hz</div>',
   });
 }
 function renderLiveState() {
@@ -1893,7 +2016,7 @@ function renderTrends(force) {
   lineChart($('#tr-temp'), {
     ...common, label: 'Deck temperature', empty: emptyMsg,
     series: [{ name: 'Deck temperature', pts: rows.map(r => [r.ts, r.temp]), color: 'var(--c2)' }],
-    fmtY: v => fmt(v, 0) + 'Â°', fmtTip: v => fmt(v, 1) + ' Â°C',
+    fmtY: v => fmt(v, 0) + '°', fmtTip: v => fmt(v, 1) + ' °C',
   });
   renderTrendTable(caps, bl);
 }
@@ -1902,8 +2025,8 @@ function renderTrendTable(caps, bl) {
   $('#tr-count').textContent = list.length ? `Newest first, ${shown.length} of ${list.length}` : '';
   const head = `<thead><tr><th>Time</th><th>Capture</th><th>State</th><th class="r">Score</th>${[1, 2, 3].map(i => `<th class="r">Mode ${i}</th>`).join('')}<th class="r">Temp</th><th>Quality</th></tr></thead>`;
   const body = shown.map(c => {
-    const f = [0, 1, 2].map(i => { const v = Array.isArray(c.freq) ? +c.freq[i] : NaN, pc = freqPct(c, i, bl); return fin(v) ? `${fmt(v, 2)}${pc != null ? ` <span class="${pc < -3 ? 'c-bad' : 'c-mute'}">${fmtPct(pc)}</span>` : ''}` : 'â€“'; });
-    return `<tr><td>${esc(fmtDT(c.ts))}</td><td><a href="#vibration/${encodeURIComponent(c.id)}">${esc(c.id)}</a>${S.prevs.has(c.id) ? '' : ' <span class="c-mute" title="No waveform preview">(score only)</span>'}</td><td><span class="badge ${STATE_CLS[c.state] || ''}">${STATE_WORD[c.state] || esc(c.state || '')}</span></td><td class="r">${fmt(c.ratio, 2)}</td>${f.map(x => `<td class="r">${x}</td>`).join('')}<td class="r">${fin(+c.temp) ? fmt(+c.temp, 1) + ' Â°C' : 'â€“'}</td><td>${c.q ? 'good' : `<span class="c-warn">${esc((c.flags || []).join(', ').replace(/_/g, ' ') || 'problem')}</span>`}</td></tr>`;
+    const f = [0, 1, 2].map(i => { const v = Array.isArray(c.freq) ? +c.freq[i] : NaN, pc = freqPct(c, i, bl); return fin(v) ? `${fmt(v, 2)}${pc != null ? ` <span class="${pc < -3 ? 'c-bad' : 'c-mute'}">${fmtPct(pc)}</span>` : ''}` : '–'; });
+    return `<tr><td>${esc(fmtDT(c.ts))}</td><td><a href="#vibration/${encodeURIComponent(c.id)}">${esc(c.id)}</a>${S.prevs.has(c.id) ? '' : ' <span class="c-mute" title="No waveform preview">(score only)</span>'}</td><td><span class="badge ${STATE_CLS[c.state] || ''}">${STATE_WORD[c.state] || esc(c.state || '')}</span></td><td class="r">${fmt(c.ratio, 2)}</td>${f.map(x => `<td class="r">${x}</td>`).join('')}<td class="r">${fin(+c.temp) ? fmt(+c.temp, 1) + ' °C' : '–'}</td><td>${c.q ? 'good' : `<span class="c-warn">${esc((c.flags || []).join(', ').replace(/_/g, ' ') || 'problem')}</span>`}</td></tr>`;
   }).join('');
   $('#tr-table').innerHTML = list.length ? head + '<tbody>' + body + '</tbody>' : '<tbody><tr><td style="padding:16px">No captures in this range.</td></tr></tbody>';
   $('#tr-more').hidden = list.length <= TR.rows;
@@ -1933,10 +2056,10 @@ function renderSystem() {
     const fact = (k, v, small) => `<div><dt>${k}</dt><dd>${v}${small ? ` <small>${small}</small>` : ''}</dd></div>`;
     $('#sys-facts').innerHTML = `<dl class="facts">
       ${fact('Running for', esc(fmtDur(+hb.uptime_s)))}
-      ${fact('Processor temperature', fin(+hb.cpu_temp_c) ? fmt(+hb.cpu_temp_c, 1) + ' Â°C' : 'â€“', +hb.cpu_temp_c > 75 ? 'hot' : '')}
-      ${fact('Free disk space', fin(+hb.disk_free_gb) ? fmt(+hb.disk_free_gb, 1) + ' GB' : 'â€“')}
-      ${fact('Waiting to send', fin(+hb.backlog) ? plural(+hb.backlog, 'message') : 'â€“')}
-      ${fact('Mobile signal', fin(+mo.signal_pct) ? Math.round(+mo.signal_pct) + ' %' : 'â€“', esc([mo.tech, mo.operator].filter(Boolean).join(' with ')))}
+      ${fact('Processor temperature', fin(+hb.cpu_temp_c) ? fmt(+hb.cpu_temp_c, 1) + ' °C' : '–', +hb.cpu_temp_c > 75 ? 'hot' : '')}
+      ${fact('Free disk space', fin(+hb.disk_free_gb) ? fmt(+hb.disk_free_gb, 1) + ' GB' : '–')}
+      ${fact('Waiting to send', fin(+hb.backlog) ? plural(+hb.backlog, 'message') : '–')}
+      ${fact('Mobile signal', fin(+mo.signal_pct) ? Math.round(+mo.signal_pct) + ' %' : '–', esc([mo.tech, mo.operator].filter(Boolean).join(' with ')))}
       ${fact('Live view', fin(lu) && lu > nowS() ? 'on' : 'off', fin(lu) && lu > nowS() ? 'until ' + fmtClock(lu) : '')}
     </dl>`;
   }
@@ -1946,8 +2069,180 @@ function renderSystem() {
     return `<div class="nrow"><span class="d" style="background:var(--${st[n].cls || 'ink3'})"></span><div><b>Node ${n.slice(1)}</b> <span class="t">${NODE_PLACE[n]}</span><div class="t">${e && fin(+e.age_s) ? `last packet ${fmtDur(+e.age_s)} before the heartbeat` : 'not in the latest heartbeat'}</div></div><span class="badge ${st[n].cls}">${esc(st[n].text)}</span></div>`;
   }).join('')}</div>`;
   const faults = hb && Array.isArray(hb.faults) ? hb.faults : [];
-  $('#sys-faults').innerHTML = !hb ? '<p class="hint">Faults are listed in each heartbeat.</p>' : faults.length ? `<ul class="timeline">${faults.map(f => `<li><span class="mk warn"></span><div class="what">${esc(String(f).replace(/_/g, ' '))}</div></li>`).join('')}</ul>` : '<p class="hint"><span class="c-ok">âœ“</span> None. Everything the base station checks is working.</p>';
+  $('#sys-faults').innerHTML = !hb ? '<p class="hint">Faults are listed in each heartbeat.</p>' : faults.length ? `<ul class="timeline">${faults.map(f => `<li><span class="mk warn"></span><div class="what">${esc(String(f).replace(/_/g, ' '))}</div></li>`).join('')}</ul>` : '<p class="hint"><span class="c-ok">✓</span> None. Everything the base station checks is working.</p>';
   renderCmdLog();
+}
+
+/* ================= motion layer =================
+   Everything here is decoration on top of real data: counters that count to the new value,
+   a spring gauge, sparklines, the header seismograph, data packets from the nodes to the base
+   station, the sliding tab indicator, scene depth and page entrances.
+   prefers-reduced-motion turns all of it into still frames. */
+let ENTER_UNTIL = 0;
+const entering = () => !RM.matches && performance.now() < ENTER_UNTIL;
+
+/* ---- counters ---- */
+const TWP = new Map();
+let TW_BOOT = true;
+const easeOut = t => 1 - Math.pow(1 - t, 3);
+function twFormat(v, el) { const d = +el.dataset.d || 0; return el.dataset.f === 'pct' ? fmtPct(v, d) : fmt(v, d); }
+function tweenIn(root) {
+  if (!root) return;
+  root.querySelectorAll('[data-tw]').forEach(el => {
+    const k = el.dataset.tw, to = +el.dataset.v;
+    if (!fin(to)) return;
+    const from = TWP.has(k) ? TWP.get(k) : (TW_BOOT ? 0 : to);
+    TWP.set(k, to);
+    if (RM.matches || Math.abs(from - to) < 1e-9) { el.textContent = twFormat(to, el); return; }
+    const t0 = performance.now(), dur = TW_BOOT ? 1200 : 700;
+    el.textContent = twFormat(from, el);
+    const tick = now => {
+      const p = Math.min(1, (now - t0) / dur);
+      el.textContent = twFormat(from + (to - from) * easeOut(p), el);
+      if (p < 1 && el.isConnected) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+/* ---- gauge: needle on a spring, arc fills ---- */
+function animateGauge(root) {
+  const g = root && root.querySelector('.gauge');
+  if (!g) return;
+  const f = +g.dataset.f, prev = TWP.has('gauge') ? TWP.get('gauge') : (TW_BOOT ? 0 : f);
+  TWP.set('gauge', f);
+  const nd = g.querySelector('.g-needle-g'), arc = g.querySelector('.g-val');
+  const apply = (v, anim) => {
+    if (nd) { nd.style.transition = anim ? 'transform 1.1s cubic-bezier(.34,1.5,.5,1)' : 'none'; nd.style.transform = `rotate(${(v * 180).toFixed(2)}deg)`; }
+    if (arc) { arc.style.transition = anim ? 'stroke-dashoffset .9s cubic-bezier(.3,.8,.3,1)' : 'none'; arc.style.strokeDashoffset = (1 - v).toFixed(4); arc.style.opacity = v > 0.004 ? 1 : 0; }
+  };
+  if (RM.matches) { apply(f, false); return; }
+  apply(prev, false);
+  g.getBoundingClientRect();
+  requestAnimationFrame(() => apply(f, true));
+}
+
+/* ---- sparkline ---- */
+function sparkSVG(vals) {
+  const v = vals.filter(fin);
+  if (v.length < 3) return '';
+  const W = 120, H = 24;
+  let lo = Math.min(...v), hi = Math.max(...v);
+  if (hi - lo < 1e-9) { hi += 1; lo -= 1; }
+  const pts = vals.map((y, i) => fin(y) ? [i / (vals.length - 1) * W, H - 3 - (y - lo) / (hi - lo) * (H - 6)] : null);
+  let d = '', pen = false;
+  for (const p of pts) { if (!p) { pen = false; continue; } d += (pen ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); pen = true; }
+  const last = [...pts].reverse().find(Boolean);
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" aria-hidden="true"><path d="${d}"/><circle class="spark-end" cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.6"/></svg>`;
+}
+
+/* ---- headline ---- */
+let HT_PREV = '';
+function heroFresh(title) { const f = title !== HT_PREV; HT_PREV = title; return f && !RM.matches; }
+function splitWords(t) { return t.split(' ').map((w, i) => `<span class="w" style="--d:${i}">${w}</span>`).join(' '); }
+
+/* ---- header seismograph: the latest capture, scrolling in real time ---- */
+const SEIS = { wave: null, fs: 50, amp: 1, t: 0, last: 0, id: null, flash: 0 };
+async function seismoRefresh() {
+  const pl = prevList(), p = pl[pl.length - 1];
+  if (!p || p.id === SEIS.id) return;
+  const d = await decodePreview(p);
+  if (!d) return;
+  const w = (d.nodes.n2 && d.nodes.n2.wave) || NODES.map(n => d.nodes[n]?.wave).find(Boolean);
+  if (!w) return;
+  SEIS.id = p.id; SEIS.wave = w; SEIS.fs = d.fs; SEIS.amp = robustAmp([{ data: w }]);
+  if (RM.matches) seismoDraw();
+}
+function seismoDraw(ts) {
+  const c = $('#seismo');
+  if (!c || c.offsetParent === null) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1), W = c.clientWidth, H = c.clientHeight;
+  if (c.width !== Math.round(W * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+  const ctx = c.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const col = getComputedStyle(c).color;
+  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1.3; ctx.lineJoin = 'round';
+  ctx.globalAlpha = 0.25; ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+  const w = SEIS.wave;
+  if (!w) return;
+  const win = 5 * SEIS.fs, n = w.length, head = Math.floor(SEIS.t * SEIS.fs) % n;
+  ctx.beginPath();
+  for (let k = 0; k <= win; k++) {
+    const i = (head - win + k + n * 4) % n, x = k / win * W;
+    const y = H / 2 - clamp(w[i] / SEIS.amp, -1, 1) * (H / 2 - 3);
+    if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+  }
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0, 'transparent'); grad.addColorStop(0.35, col); grad.addColorStop(1, col);
+  ctx.globalAlpha = 1; ctx.strokeStyle = grad; ctx.stroke();
+  const ly = H / 2 - clamp(w[head] / SEIS.amp, -1, 1) * (H / 2 - 3);
+  ctx.beginPath(); ctx.arc(W - 1.5, ly, 2.4 + SEIS.flash * 3, 0, Math.PI * 2); ctx.fill();
+}
+function seismoLoop(ts) {
+  requestAnimationFrame(seismoLoop);
+  if (document.hidden || RM.matches) return;
+  const dt = SEIS.last ? Math.min(0.1, (ts - SEIS.last) / 1000) : 0;
+  if (dt < 1 / 40 && SEIS.last) return;
+  SEIS.last = ts; SEIS.t += dt; SEIS.flash = Math.max(0, SEIS.flash - dt * 2);
+  seismoDraw(ts);
+}
+
+/* ---- a new capture arrived: pill blip, packets from nodes to the base station, 4G burst ---- */
+function liveBlip() {
+  const dot = $('#conn-pill .dot');
+  if (dot) { dot.classList.remove('blip'); void dot.offsetWidth; dot.classList.add('blip'); }
+  SEIS.flash = 1;
+  seismoRefresh();
+  if (RM.matches || document.hidden || currentPage() !== 'overview') return;
+  const st = R.nst || {};
+  $$('#bridge .packet').forEach((c, i) => {
+    if (st[c.dataset.node] && st[c.dataset.node].key === 'silent') return;
+    setTimeout(() => c.querySelectorAll('animateMotion, animate').forEach(a => { try { a.beginElement(); } catch (e) { } }), i * 160);
+  });
+  const tx = $('#bridge .tx');
+  if (tx) setTimeout(() => { tx.classList.remove('on'); void tx.getBoundingClientRect(); tx.classList.add('on'); }, 1500);
+}
+
+/* ---- sliding tab indicator ---- */
+function moveInk() {
+  const ink = $('.tab-ink'), a = $('.tabs a[aria-current="page"]');
+  if (!ink || !a) return;
+  ink.style.width = Math.max(0, a.offsetWidth - 24) + 'px';
+  ink.style.transform = `translateX(${a.offsetLeft + 12}px)`;
+}
+
+/* ---- page entrance: panels rise in sequence, charts reveal ---- */
+function pageEnter(pg) {
+  if (RM.matches) return;
+  const sec = $(`#page-${pg}`);
+  if (!sec) return;
+  [...sec.children].forEach((c, i) => c.style.setProperty('--i', Math.min(i, 8)));
+  sec.classList.remove('enter'); void sec.offsetWidth; sec.classList.add('enter');
+  ENTER_UNTIL = performance.now() + 1300;
+}
+
+/* ---- scene depth on mouse move ---- */
+function setupParallax() {
+  const wrap = $('.bridge-wrap');
+  if (!wrap) return;
+  const layers = $$('#bridge [data-depth]');
+  let raf = 0, px = 0, py = 0;
+  wrap.addEventListener('pointermove', e => {
+    if (RM.matches || e.pointerType !== 'mouse') return;
+    const r = wrap.getBoundingClientRect();
+    px = (e.clientX - r.left) / r.width - 0.5; py = (e.clientY - r.top) / r.height - 0.5;
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; layers.forEach(g => { const k = +g.dataset.depth; g.style.transform = `translate(${(-px * k).toFixed(2)}px, ${(-py * k * 0.4).toFixed(2)}px)`; }); });
+  });
+  wrap.addEventListener('pointerleave', () => layers.forEach(g => { g.style.transform = ''; }));
+}
+
+function setupMotion() {
+  setupParallax();
+  window.addEventListener('resize', moveInk);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(moveInk);
+  $('.tabs').addEventListener('scroll', moveInk, { passive: true });
+  requestAnimationFrame(seismoLoop);
 }
 
 /* ================= remote commands ================= */
@@ -2080,7 +2375,7 @@ function onMqttMessage(topic, payload, packet) {
   if (!j) return;
   switch (sub) {
     case 'capture': addCapture(j); break;
-    case 'preview': addPreview(j); break;
+    case 'preview': addPreview(j); liveBlip(); break;
     case 'event': addEvent(j); break;
     case 'state': S.piState = j; break;
     case 'heartbeat': addHeartbeat(j, nowS()); break;
@@ -2093,7 +2388,7 @@ function onMqttMessage(topic, payload, packet) {
 /* ================= history file (SQLite) ================= */
 async function openSqlite(file) {
   const msg = $('#file-msg');
-  msg.innerHTML = `<div class="notice info">Reading ${esc(file.name)}â€¦</div>`;
+  msg.innerHTML = `<div class="notice info">Reading ${esc(file.name)}…</div>`;
   try {
     await loadScript(SQLJS_URL);
     const SQL = await window.initSqlJs();
@@ -2293,6 +2588,7 @@ function demoTick() {
   const cap = demoCapture(ts);
   addCapture(cap);
   addPreview(demoPreview(cap, live));
+  liveBlip();
   if (S.prevs.size > 300) { const old = prevList().slice(0, S.prevs.size - 300); for (const p of old) if (p.id !== R.id && p.id !== VIB.id) S.prevs.delete(p.id); S.ver++; }
   S.piState = { state: DEMO.state, since: DEMO.since, why: DEMO.state === 'NORMAL' ? '' : DEMO.overWhy };
   if (++DEMO.tick % 15 === 0) addHeartbeat(demoHB(ts), ts);
@@ -2427,7 +2723,7 @@ function renderConnMsg() {
   $('#f-disconnect').disabled = !MQ.client;
   const busy = MQ.status === 'connecting';
   $('#f-connect').disabled = busy;
-  $('#f-connect').textContent = busy ? 'Connectingâ€¦' : MQ.client ? 'Reconnect' : 'Connect';
+  $('#f-connect').textContent = busy ? 'Connecting…' : MQ.client ? 'Reconnect' : 'Connect';
 }
 function renderConnect() { renderConnMsg(); updateDemoUI(); }
 function readForm() {
@@ -2463,6 +2759,8 @@ function route() {
   if (pg === 'vibration' && parts[1]) { VIB.id = decodeURIComponent(parts.slice(1).join('/')); VIB.follow = false; }
   if (pg !== 'overview') stopLoop();
   VIB.key = ''; TR.key = '';
+  pageEnter(pg);
+  requestAnimationFrame(moveInk);
   if (lastPage && lastPage !== pg) { window.scrollTo(0, 0); const h = $(`#page-${pg} h2`); $('#main').focus({ preventScroll: true }); if (h) $('#main').setAttribute('aria-label', h.textContent); }
   lastPage = pg;
   const cur = $(`.tabs a[data-page="${pg}"]`); if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -2529,7 +2827,7 @@ function wireUI() {
 function init() {
   const th = lsGet('shm-theme'); if (th === 'dark' || th === 'light') document.documentElement.dataset.theme = th;
   setThemeIcon();
-  setupBridge(); wireUI();
+  setupBridge(); wireUI(); setupMotion();
   if (inArtifactViewer()) $('#artifact-note').hidden = false;
   const saved = safeJSON(lsGet('shm-dash-conn'));
   if (saved && typeof saved === 'object') {

@@ -16,7 +16,7 @@ function replayReset() {
   const tr = $('#traces'); if (tr) tr.innerHTML = '';
 }
 function setupBridge() {
-  $('#node-layer').innerHTML = NODES.map(n => `<g class="node none" data-node="${n}" tabindex="0" role="button" aria-pressed="false" aria-label="Node ${n.slice(1)} at ${NODE_PLACE[n]}. Show its readings."><line class="leader" x1="0" y1="11" x2="0" y2="33"/><circle class="hit" r="26"/><circle class="halo" r="15"/><circle class="ring" r="9"/><circle class="core" r="3.5"/><text class="lbl" y="52">${n}</text></g>`).join('');
+  $('#node-layer').innerHTML = NODES.map(n => `<g class="node none" data-node="${n}" tabindex="0" role="button" aria-pressed="false" aria-label="Node ${n.slice(1)} at ${NODE_PLACE[n]}. Show its readings."><circle class="pulse" r="9"/><line class="leader" x1="0" y1="11" x2="0" y2="33"/><circle class="hit" r="26"/><circle class="halo" r="15"/><circle class="ring" r="9"/><circle class="core" r="3.5"/><text class="lbl" y="52">${n}</text></g>`).join('');
   $$('#node-layer .node').forEach(g => {
     g.addEventListener('click', () => selectNode(g.dataset.node));
     g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectNode(g.dataset.node); } });
@@ -68,6 +68,9 @@ async function replayLoad(id, autoplay) {
   R.id = id; R.p = p; R.dec = dec; R.dur = dec.dur || 30;
   if (R.pending === id) R.pending = null;
   R.amp = robustAmp(NODES.map(n => ({ data: dec.nodes[n]?.wave })).filter(c => c.data));
+  R.disp = {};
+  for (const n of NODES) { const w = dec.nodes[n]?.wave; if (w && w.length > 8) R.disp[n] = lowpass(w, dec.fs, 3.2); }
+  R.damp = robustAmp(NODES.map(n => ({ data: R.disp[n] })).filter(c => c.data));
   $('#scrub').max = R.dur;
   buildTraces();
   if (RM.matches) { R.t = strongestMoment(dec); R.playing = false; }
@@ -99,18 +102,49 @@ function step(ts) {
   frame(R.t);
   if (R.playing) R.raf = requestAnimationFrame(step);
 }
+/* zero-phase 2nd-order low-pass (Butterworth, run forward and backward) */
+function lowpass(x, fs, fc) {
+  const K = Math.tan(Math.PI * fc / fs), q = Math.SQRT1_2, n = 1 / (1 + K / q + K * K);
+  const b0 = K * K * n, b1 = 2 * b0, a1 = 2 * (K * K - 1) * n, a2 = (1 - K / q + K * K) * n;
+  const run = src => {
+    const out = new Float32Array(src.length);
+    let x1 = src[0] || 0, x2 = x1, y1 = x1, y2 = x1;
+    for (let i = 0; i < src.length; i++) { const v = b0 * src[i] + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = src[i]; y2 = y1; y1 = v; out[i] = v; }
+    return out;
+  };
+  return run(run(x).reverse()).reverse();
+}
+/* static deflection of a simply supported span under a point load at a (0..1); 1 = mid-span load seen at mid-span */
+function influence(u, a) {
+  if (a <= 0 || a >= 1 || u <= 0 || u >= 1) return 0;
+  const b = 1 - a;
+  const w = u <= a ? b * u * (1 - b * b - u * u) / 6 : a * (1 - u) * (1 - a * a - (1 - u) * (1 - u)) / 6;
+  return w / 0.0208333;
+}
 function frame(t) {
-  const d = R.dec, y = [0, 0, 0], EXAG = window.innerWidth < 640 ? 20 : 12;
+  const d = R.dec, y = [0, 0, 0], lv = [0, 0, 0], phone = window.innerWidth < 640;
+  const EX = phone ? 6 : 4, SAG = phone ? 6 : 3.5, LIM = phone ? 12 : 8;
   if (d) {
     const fi = t * d.fs;
     NODES.forEach((n, j) => {
       const w = d.nodes[n]?.wave; if (!w || !w.length) return;
       const i0 = clamp(Math.floor(fi), 0, w.length - 1), i1 = Math.min(w.length - 1, i0 + 1), fr = clamp(fi - i0, 0, 1);
-      y[j] = clamp((w[i0] * (1 - fr) + w[i1] * fr) / R.amp * EXAG, -EXAG * 1.2, EXAG * 1.2);
+      lv[j] = Math.min(1, Math.abs(w[i0] * (1 - fr) + w[i1] * fr) / R.amp);
+      const dw = R.disp && R.disp[n]; if (!dw) return;
+      y[j] = EX * Math.tanh((dw[i0] * (1 - fr) + dw[i1] * fr) / R.damp);
     });
   }
   const a = [0, 1, 2].map(r => MINV[r][0] * y[0] + MINV[r][1] * y[1] + MINV[r][2] * y[2]);
-  const disp = u => (u <= 0 || u >= 1) ? 0 : a[0] * Math.sin(Math.PI * u) + a[1] * Math.sin(2 * Math.PI * u) + a[2] * Math.sin(3 * Math.PI * u);
+  const loads = d ? d.events.map((e, i) => ({ s: +e[0], e: +e[1], i })).filter(e => e.e > e.s && t >= e.s && t <= e.e).map(ev => {
+    const u = (t - ev.s) / (ev.e - ev.s), dir = ev.i % 2 ? -1 : 1;
+    return { ev, dir, pos: -0.07 + 1.14 * (dir > 0 ? u : 1 - u), m: 0.75 + ((ev.i * 37) % 10) / 20 };
+  }) : [];
+  const disp = u => {
+    if (u <= 0 || u >= 1) return 0;
+    let v = a[0] * Math.sin(Math.PI * u) + a[1] * Math.sin(2 * Math.PI * u) + a[2] * Math.sin(3 * Math.PI * u);
+    for (const L of loads) v -= SAG * L.m * influence(u, L.pos);
+    return LIM * Math.tanh(v / LIM);
+  };
   const K = 48;
   let top = '', bot = '', posts = '', rail = '';
   for (let i = 0; i <= K; i++) {
@@ -124,22 +158,19 @@ function frame(t) {
   $('#rail').setAttribute('d', rail);
   $('#posts').setAttribute('d', posts);
   $$('#node-layer .node').forEach(g => {
-    const u = NODE_U[g.dataset.node];
+    const n = g.dataset.node, u = NODE_U[n], L = lv[NODES.indexOf(n)];
     g.setAttribute('transform', `translate(${(BX0 + u * BSPAN).toFixed(1)} ${(BY - disp(u) + DECK_T / 2).toFixed(1)})`);
+    const pl = g.firstElementChild;
+    if (pl && pl.classList.contains('pulse')) { pl.setAttribute('r', (phone ? 20 * (1 + 0.9 * L) : 9 * (1 + 2.2 * L)).toFixed(1)); pl.style.opacity = ((phone ? 0.28 : 0.4) * L).toFixed(3); }
   });
-  // vehicles
-  const cars = $$('#cars .car');
-  const evs = d ? d.events.map((e, i) => ({ s: +e[0], e: +e[1], i })).filter(e => t >= e.s && t <= e.e) : [];
-  cars.forEach((g, k) => {
-    const ev = evs[k];
-    if (!ev || !(ev.e > ev.s)) { g.setAttribute('visibility', 'hidden'); return; }
-    const u = (t - ev.s) / (ev.e - ev.s), dir = ev.i % 2 ? -1 : 1;
-    const pos = -0.07 + 1.14 * (dir > 0 ? u : 1 - u);
-    const x = BX0 + pos * BSPAN, yy = BY - disp(pos);
-    const slope = -(disp(pos + 0.01) - disp(pos - 0.01)) / (0.02 * BSPAN);
+  $$('#cars .car').forEach((g, k) => {
+    const L = loads[k];
+    if (!L) { g.setAttribute('visibility', 'hidden'); return; }
+    const x = BX0 + L.pos * BSPAN, yy = BY - disp(L.pos);
+    const slope = -(disp(L.pos + 0.01) - disp(L.pos - 0.01)) / (0.02 * BSPAN);
     g.setAttribute('visibility', 'visible');
     g.setAttribute('transform', `translate(${x.toFixed(1)} ${yy.toFixed(1)}) rotate(${(Math.atan(slope) * 180 / Math.PI).toFixed(2)})`);
-    g.firstElementChild.setAttribute('transform', `scale(${dir} 1)`);
+    g.firstElementChild.setAttribute('transform', `scale(${L.dir} 1)`);
   });
   const pct = (R.dur ? t / R.dur * 100 : 0).toFixed(3) + '%';
   $$('#traces .ph').forEach(ph => { ph.style.left = pct; });
@@ -256,32 +287,30 @@ function computeHeadline() {
   return r;
 }
 function renderHero() {
-  const h = computeHeadline(), now = nowRef(), el = $('#hero');
+  const h = computeHeadline(), now = nowRef(), el = $('#hero'), fresh = heroFresh(h.title);
   el.className = 'hero ' + h.cls;
   const fileNote = !isLive() && S.file && h.last ? `<span>From the history file</span>` : '';
-  el.innerHTML = `<div class="hero-icon" aria-hidden="true">${ICON[h.icon]}</div><div><h1>${h.title}</h1><p>${h.text}</p></div>
+  el.innerHTML = `<div class="hero-icon${fresh ? ' draw' : ''}" aria-hidden="true"><svg class="orbit" viewBox="0 0 100 100"><circle cx="50" cy="50" r="47"/></svg>${ICON[h.icon]}</div><div><h1>${fresh ? splitWords(h.title) : h.title}</h1><p>${h.text}</p></div>
   <div class="meta">${h.last ? `<span>Last capture <b>${esc(fmtAgo(h.last.ts, nowS()))}</b></span>` : ''}${fin(h.since) ? `<span>Like this for <b>${esc(fmtDur(now - h.since))}</b></span>` : ''}${fileNote}</div>`;
   const alarm = h.state === 'ALARM' && h.icon === 'bad';
+  document.body.classList.toggle('is-alarm', alarm);
   document.title = (alarm ? 'Alarm: ' : h.icon === 'warn' ? 'Changed: ' : '') + 'Bridge health monitor';
   const tab = $('.tabs a[data-page="overview"]');
   tab.innerHTML = 'Overview' + (alarm || h.icon === 'offline' ? '<span class="tab-dot" aria-label="needs attention"></span>' : '');
 }
 function gaugeSVG(r, col) {
-  const cx = 52, cy = 54, Rr = 42;
-  const pt = f => { const a = Math.PI * (1 - f); return [cx + Rr * Math.cos(a), cy - Rr * Math.sin(a)]; };
-  const f = fin(r) ? clamp(r / 2, 0, 1) : 0;
-  const [ax, ay] = pt(0), [bx, by] = pt(1), [vx, vy] = pt(f);
-  const na = Math.PI * (1 - f), nx = cx + (Rr - 13) * Math.cos(na), ny = cy - (Rr - 13) * Math.sin(na);
-  return `<svg class="gauge" viewBox="0 0 104 62" aria-hidden="true"><path class="g-bg" d="M${ax} ${ay}A${Rr} ${Rr} 0 0 1 ${bx} ${by}"/>${f > 0.004 ? `<path class="g-val" style="stroke:${col}" d="M${ax} ${ay}A${Rr} ${Rr} 0 0 1 ${vx.toFixed(1)} ${vy.toFixed(1)}"/>` : ''}<line class="g-tick" x1="${cx}" x2="${cx}" y1="${cy - Rr - 7}" y2="${cy - Rr + 8}"/>${fin(r) ? `<line class="g-needle" x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}"/><circle cx="${cx}" cy="${cy}" r="3.5" fill="var(--ink)"/>` : ''}<text x="4" y="61">0</text><text x="94" y="61">2</text></svg>`;
+  const cx = 52, cy = 54, Rr = 42, f = fin(r) ? clamp(r / 2, 0, 1) : 0;
+  const arc = `M${cx - Rr} ${cy}A${Rr} ${Rr} 0 0 1 ${cx + Rr} ${cy}`;
+  return `<svg class="gauge" viewBox="0 0 104 62" aria-hidden="true" data-f="${f}"><path class="g-bg" d="${arc}"/><path class="g-val" pathLength="1" style="stroke:${col}" d="${arc}"/><line class="g-tick" x1="${cx}" x2="${cx}" y1="${cy - Rr - 7}" y2="${cy - Rr + 8}"/>${fin(r) ? `<g class="g-needle-g"><line class="g-needle" x1="${cx}" y1="${cy}" x2="${cx - Rr + 13}" y2="${cy}"/></g><circle cx="${cx}" cy="${cy}" r="3.5" fill="var(--ink)"/>` : ''}<text x="4" y="61">0</text><text x="94" y="61">2</text></svg>`;
 }
 function renderStrip() {
   const last = lastCap(), bl = baseline(), hb = lastHb(), now = nowRef();
   const ratio = last?.ratio;
   const gcol = !fin(ratio) ? 'var(--ink3)' : ratio >= 1 ? 'var(--bad)' : ratio >= 0.8 ? 'var(--warn)' : 'var(--ok)';
-  const i1 = `<div class="inst"><div class="lab">Anomaly score</div><div class="gauge-row">${gaugeSVG(ratio, gcol)}<div><div class="big" style="color:${fin(ratio) && ratio >= 1 ? 'var(--bad)' : 'inherit'}">${fin(ratio) ? fmt(ratio, 2) : '–'}</div><div class="note">${last && last.mode === 'collect' ? 'not scored while learning' : 'alarm level is 1.0'}</div></div></div></div>`;
+  const i1 = `<div class="inst"><div class="lab">Anomaly score</div><div class="gauge-row">${gaugeSVG(ratio, gcol)}<div><div class="big" style="color:${fin(ratio) && ratio >= 1 ? 'var(--bad)' : 'inherit'}">${fin(ratio) ? `<span data-tw="score" data-v="${ratio}" data-d="2">${fmt(ratio, 2)}</span>` : '–'}</div><div class="note">${last && last.mode === 'collect' ? 'not scored while learning' : 'alarm level is 1.0'}</div>${sparkSVG(S.caps.slice(-72).map(c => c.ratio))}</div></div></div>`;
   const rows = [0, 1, 2].map(i => {
     const f = Array.isArray(last?.freq) ? +last.freq[i] : NaN, pc = freqPct(last, i, bl);
-    return `<span class="m">Mode ${i + 1}</span><span class="v">${fin(f) ? fmt(f, 2) : '–'} <small class="c-mute" style="font-size:14px">Hz</small></span><span class="d${pc != null && pc < -3 ? ' low' : ''}">${pc == null ? '' : fmtPct(pc)}</span>`;
+    return `<span class="m">Mode ${i + 1}</span><span class="v">${fin(f) ? `<span data-tw="f${i}" data-v="${f}" data-d="2">${fmt(f, 2)}</span>` : '–'} <small class="c-mute" style="font-size:14px">Hz</small></span><span class="d${pc != null && pc < -3 ? ' low' : ''}">${pc == null ? '' : `<span data-tw="p${i}" data-v="${pc}" data-d="1" data-f="pct">${fmtPct(pc)}</span>`}</span>`;
   }).join('');
   const i2 = `<div class="inst"><div class="lab">Natural frequencies</div><div class="freqs">${rows}</div><div class="note">${bl ? `change from healthy (median of the first ${bl.n} normal captures)` : 'healthy baseline needs 5 good normal captures'}</div></div>`;
   const midnight = new Date(now * 1000); midnight.setHours(0, 0, 0, 0);
@@ -289,7 +318,7 @@ function renderStrip() {
   let tmin = Infinity, tmax = -Infinity;
   for (let i = S.caps.length - 1; i >= 0 && S.caps[i].ts >= t0; i--) { const v = +S.caps[i].temp; if (fin(v)) { tmin = Math.min(tmin, v); tmax = Math.max(tmax, v); } }
   const temp = +last?.temp;
-  const i3 = `<div class="inst"><div class="lab">Deck temperature</div><div class="big">${fin(temp) ? fmt(temp, 1) : '–'}<small>°C</small></div><div class="note">${fin(tmin) ? `today ${fmt(tmin, 1)} to ${fmt(tmax, 1)} °C` : 'no readings today'}</div></div>`;
+  const i3 = `<div class="inst"><div class="lab">Deck temperature</div><div class="big">${fin(temp) ? `<span data-tw="temp" data-v="${temp}" data-d="1">${fmt(temp, 1)}</span>` : '–'}<small>°C</small></div><div class="note">${fin(tmin) ? `today ${fmt(tmin, 1)} to ${fmt(tmax, 1)} °C` : 'no readings today'}</div>${sparkSVG(S.caps.filter(c => c.ts >= now - 86400).filter((c, i, arr) => i % Math.max(1, Math.floor(arr.length / 96)) === 0).map(c => +c.temp))}</div>`;
   let tot = 0, good = 0; const flags = {};
   for (let i = S.caps.length - 1; i >= 0 && S.caps[i].ts >= now - 86400; i--) {
     const c = S.caps[i]; tot++; if (c.q) good++;
@@ -297,11 +326,13 @@ function renderStrip() {
   }
   const top = Object.entries(flags).sort((a, b) => b[1] - a[1])[0];
   const gp = tot ? good / tot * 100 : null;
-  const i4 = `<div class="inst"><div class="lab">Good captures, 24 h</div><div class="big" style="color:${gp != null && gp < 80 ? 'var(--warn)' : 'inherit'}">${gp == null ? '–' : Math.floor(gp)}<small>%</small></div><div class="note">${!tot ? 'no captures in 24 h' : top ? `most common problem: ${esc(String(top[0]).replace(/_/g, ' '))} (${top[1]})` : `all ${tot} were clean`}</div></div>`;
+  const i4 = `<div class="inst"><div class="lab">Good captures, 24 h</div><div class="big" style="color:${gp != null && gp < 80 ? 'var(--warn)' : 'inherit'}">${gp == null ? '–' : `<span data-tw="good" data-v="${Math.floor(gp)}" data-d="0">${Math.floor(gp)}</span>`}<small>%</small></div><div class="note">${!tot ? 'no captures in 24 h' : top ? `most common problem: ${esc(String(top[0]).replace(/_/g, ' '))} (${top[1]})` : `all ${tot} were clean`}</div></div>`;
   const mo = hb?.modem || {}, sig = +mo.signal_pct;
   const bars = [20, 40, 60, 80].map((t, k) => `<i class="${fin(sig) && sig >= t - 10 ? 'on' : ''}" style="height:${6 + k * 5}px"></i>`).join('');
-  const i5 = `<div class="inst"><div class="lab">Mobile signal</div><div class="big"><span class="sigbars" aria-hidden="true">${bars}</span>${fin(sig) ? Math.round(sig) : '–'}<small>%</small></div><div class="note">${hb ? esc([mo.tech, mo.operator].filter(Boolean).join(' with ') || 'network unknown') : 'no heartbeat yet'}</div></div>`;
+  const i5 = `<div class="inst"><div class="lab">Mobile signal</div><div class="big"><span class="sigbars" aria-hidden="true">${bars}</span>${fin(sig) ? `<span data-tw="sig" data-v="${Math.round(sig)}" data-d="0">${Math.round(sig)}</span>` : '–'}<small>%</small></div><div class="note">${hb ? esc([mo.tech, mo.operator].filter(Boolean).join(' with ') || 'network unknown') : 'no heartbeat yet'}</div></div>`;
   $('#strip').innerHTML = i1 + i2 + i3 + i4 + i5;
+  tweenIn($('#strip')); animateGauge($('#strip'));
+  if (last) TW_BOOT = false;
 }
 function openCapture(id) { location.hash = '#vibration/' + encodeURIComponent(id); }
 function renderOvChart() {

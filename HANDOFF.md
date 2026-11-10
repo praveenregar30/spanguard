@@ -24,6 +24,7 @@ The owner is a student at IIT Mandi (GitHub `praveenregar30`, repository name `s
 | `src\02-core.js` | Helpers, the data store `S`, healthy baseline, node status, preview decoding, FFT and Welch spectrum, chart components (`lineChart`, `waveStack`), icons. |
 | `src\03-overview.js` | Overview page: animated bridge replay (`R` object), status headline, instrument strip, 24 h score chart, node list, event timeline. |
 | `src\04-pages.js` | Vibration page (`VIB`), raw `.npz` reader (`RAW`, `unzip`, `parseNpy`, `parseRaw`), Trends (`TR`), Events (`EV`), System. |
+| `src\04b-motion.js` | Motion layer: counters, spring gauge, sparklines, header seismograph, data packets to the base station, sliding tab indicator, page entrances, scene depth. All of it is skipped under reduced motion. |
 | `src\05-app.js` | Remote commands, MQTT connection (`MQ`), SQLite loading, demo simulator (`DEMO`), router, theme, event wiring, `init()`. |
 | `src\build.sh` | Concatenates the 5 source parts into `index.html`. Run `sh src/build.sh` after every edit. |
 | `broker_test.py` | Fake Raspberry Pi for testing (Python, needs only `paho-mqtt`). Publishes every message type in the exact formats and answers commands. |
@@ -100,7 +101,9 @@ The owner is a student at IIT Mandi (GitHub `praveenregar30`, repository name `s
    - Touch targets are at least 44 px on touch screens, and buttons respond on hover and press.
    - Connect shows a loading state, the headline enters once on load, and the sticky header respects the safe area.
 5. **Published the demo** to the private claude.ai page above.
-6. **Created the local git repo**, renamed the output to `index.html` (for GitHub Pages), and wrote the README. The first commit is `6585a35`.
+6. **Second design pass (motion):** an animated scene (sky, clouds, sun or moon and stars, a base station with radio links), data packets and a 4G burst on each new capture, node vibration rings, a header seismograph, counting numbers, a spring gauge, sparklines, a sliding tab indicator, page and chart entrances, and an alarm pulse.
+7. **Bridge motion fix:** the deck now follows low-passed (3.2 Hz, zero-phase) displacement-like motion with soft limits (at most about 8 px on desktop, 12 px on phones), plus a static sag under each vehicle from the simply supported beam's influence line. Measured on a capture with 3 crossings: peak 6.9 px during vehicles, 1.9 px when quiet, at most 1 px change per frame (before: about 17 px with flicker).
+8. **Created the local git repo**, renamed the output to `index.html` (for GitHub Pages), and wrote the README. The first commit is `6585a35`.
 
 ## 7. Known limitations and open items
 
@@ -116,7 +119,7 @@ The owner is a student at IIT Mandi (GitHub `praveenregar30`, repository name `s
 
 1. Edit the files in `src\`, never `index.html`.
 2. Rebuild by running `sh src/build.sh` in Git Bash.
-3. Syntax check: `cat src/02-core.js src/03-overview.js src/04-pages.js src/05-app.js > all.js && node --check all.js`.
+3. Syntax check: `cat src/02-core.js src/03-overview.js src/04-pages.js src/04b-motion.js src/05-app.js > all.js && node --check all.js`.
 4. Browser test: `node tools/cdp-test.mjs tools/example-steps.json`. It prints the results of the in-page JS and any console errors, and saves screenshots. Step options are `size` [w,h], `dark`, `rm` (reduced motion), `nav` (URL), `wait`, `eval` (JS run in the page; globals such as `S`, `R`, `DEMO`, `toggleDamage()` and `sendCmd()` are reachable), `sleep`, `shot` (file) and `maxH`. Chrome is expected at `C:/Program Files/Google/Chrome/Application/chrome.exe`.
 5. Fake Pi without a broker: `python broker_test.py --dry-run out`.
 6. Fake Pi with a broker: `python broker_test.py --host <addr> --user <pi user> --password <pi pass> --token <token>`. For a quick free test use `--host broker.emqx.io` (no login needed) with a unique `--site`, and connect the dashboard to `broker.emqx.io` with the same site ID.

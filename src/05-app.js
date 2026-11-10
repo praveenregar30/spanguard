@@ -129,7 +129,7 @@ function onMqttMessage(topic, payload, packet) {
   if (!j) return;
   switch (sub) {
     case 'capture': addCapture(j); break;
-    case 'preview': addPreview(j); break;
+    case 'preview': addPreview(j); liveBlip(); break;
     case 'event': addEvent(j); break;
     case 'state': S.piState = j; break;
     case 'heartbeat': addHeartbeat(j, nowS()); break;
@@ -342,6 +342,7 @@ function demoTick() {
   const cap = demoCapture(ts);
   addCapture(cap);
   addPreview(demoPreview(cap, live));
+  liveBlip();
   if (S.prevs.size > 300) { const old = prevList().slice(0, S.prevs.size - 300); for (const p of old) if (p.id !== R.id && p.id !== VIB.id) S.prevs.delete(p.id); S.ver++; }
   S.piState = { state: DEMO.state, since: DEMO.since, why: DEMO.state === 'NORMAL' ? '' : DEMO.overWhy };
   if (++DEMO.tick % 15 === 0) addHeartbeat(demoHB(ts), ts);
@@ -512,6 +513,8 @@ function route() {
   if (pg === 'vibration' && parts[1]) { VIB.id = decodeURIComponent(parts.slice(1).join('/')); VIB.follow = false; }
   if (pg !== 'overview') stopLoop();
   VIB.key = ''; TR.key = '';
+  pageEnter(pg);
+  requestAnimationFrame(moveInk);
   if (lastPage && lastPage !== pg) { window.scrollTo(0, 0); const h = $(`#page-${pg} h2`); $('#main').focus({ preventScroll: true }); if (h) $('#main').setAttribute('aria-label', h.textContent); }
   lastPage = pg;
   const cur = $(`.tabs a[data-page="${pg}"]`); if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -578,7 +581,7 @@ function wireUI() {
 function init() {
   const th = lsGet('shm-theme'); if (th === 'dark' || th === 'light') document.documentElement.dataset.theme = th;
   setThemeIcon();
-  setupBridge(); wireUI();
+  setupBridge(); wireUI(); setupMotion();
   if (inArtifactViewer()) $('#artifact-note').hidden = false;
   const saved = safeJSON(lsGet('shm-dash-conn'));
   if (saved && typeof saved === 'object') {
